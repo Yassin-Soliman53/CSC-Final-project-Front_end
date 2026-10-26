@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import apiRequest from "../API/apirequest.js";
+import apiRequest from "../API/apiRequest";
 const AuthContext = createContext(null);
 
 const checkAuth = async (setUser, setLoading) => {
