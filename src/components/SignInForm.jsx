@@ -1,7 +1,33 @@
 import { useState } from "react";
+import signIn from "../API/signIn";
 
 export default function SignInForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
+
+  const [data, setData] = useState({
+    email: "",
+    password: "",
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const response = await signIn({
+      data,
+    });
+    console.log("Response:", response);
+  };
+
+  const inputClass =
+    "w-full px-4 py-3 text-sm rounded-xl border border-[#1a1f2c]/20 focus:border-[#E4572E] focus:ring-[#E4572E]/20 bg-white text-[#1a1f2c] focus:outline-none focus:ring-2 shadow-sm";
 
   return (
     <div className="w-full max-w-md text-center">
@@ -18,45 +44,58 @@ export default function SignInForm({ onSwitch }) {
       </p>
 
       <form
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={handleSubmit}
         className="flex flex-col gap-3.5 text-right"
       >
+        {/* Email */}
         <div>
-          <label className="text-xs font-bold text-[#1a1f2c] block mb-1">
+          <label
+            htmlFor="signin-email"
+            className="text-xs font-bold text-[#1a1f2c] block mb-1"
+          >
             ميلك يحج
           </label>
 
           <input
+            id="signin-email"
             type="email"
             name="email"
-            placeholder="حط إيميلك "
+            value={data.email}
+            onChange={handleChange}
+            placeholder="حط إيميلك"
             autoComplete="username"
-            className="w-full px-4 py-3 text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#E4572E] focus:ring-2 focus:ring-[#E4572E]/20 shadow-sm"
             required
+            className={inputClass}
           />
         </div>
 
+        {/* Password */}
         <div>
-          <label className="text-xs font-bold text-[#1a1f2c] block mb-1">
+          <label
+            htmlFor="signin-password"
+            className="text-xs font-bold text-[#1a1f2c] block mb-1"
+          >
             باسوردك علشان منزعلش
           </label>
 
           <div className="relative">
             <input
+              id="signin-password"
               type={showPassword ? "text" : "password"}
               name="password"
-              placeholder="باسوردك معلش "
+              value={data.password}
+              onChange={handleChange}
+              placeholder="باسوردك معلش"
               autoComplete="current-password"
-              className="w-full px-4 py-3 pl-10 text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#E4572E] focus:ring-2 focus:ring-[#E4572E]/20 shadow-sm"
               required
+              className={`${inputClass} pl-10`}
             />
 
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={
-                showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
-              }
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#E4572E] transition-colors cursor-pointer"
             >
               {showPassword ? (
@@ -98,6 +137,7 @@ export default function SignInForm({ onSwitch }) {
           </div>
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
           className="mt-2 w-full py-3.5 bg-[#E4572E] hover:bg-[#c9451e] text-white font-black rounded-xl shadow-lg transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"

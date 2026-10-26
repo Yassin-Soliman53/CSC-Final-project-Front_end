@@ -1,10 +1,11 @@
 import apiRequest from "./apirequest.js";
 
-const login = async (loginData) => {
+const signIn = async (signInData) => {
+  console.log("sec")
   return await apiRequest("/auth/signIn", {
     method: "POST",
-    body: JSON.stringify(loginData),
+    body: JSON.stringify(signInData),
   });
 };
 
-export default login;
+export default signIn;
