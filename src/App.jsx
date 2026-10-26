@@ -7,12 +7,14 @@ export default function App() {
   return (
     <BrowserRouter basename="/CSC-Final-project-Front_end">
       <Routes>
-        <Route index element={<Navigate to="signIn"/>}/>
+        <Route index element={<Navigate to="signIn" />} />
         <Route
           path="/signIn"
           element={!isAuthenticated ? <SignInPage /> : "p"}
-          
         />
+        <Route path="resturant" element={<p>test</p>}>
+          <Route path="main-menu"/>
+        </Route>
       </Routes>
     </BrowserRouter>
   );
