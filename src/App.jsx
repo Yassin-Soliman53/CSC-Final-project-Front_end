@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import SignInPage from "./pages/SignIn.jsx";
 import { useAuth } from "./providers/AuthProvider.jsx";
 
@@ -7,10 +7,11 @@ export default function App() {
   return (
     <BrowserRouter basename="/CSC-Final-project-Front_end">
       <Routes>
+        <Route index element={<Navigate to="signIn"/>}/>
         <Route
           path="/signIn"
           element={!isAuthenticated ? <SignInPage /> : "p"}
-          index
+          
         />
       </Routes>
     </BrowserRouter>

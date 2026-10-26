@@ -1,5 +1,6 @@
 import { useState } from "react";
 import signUp from "../API/signUp";
+import { useAuth } from "../providers/AuthProvider";
 export default function SignUpForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -10,7 +11,7 @@ export default function SignUpForm({ onSwitch }) {
     roomNumber: "",
     phone: "",
   });
-
+  const { setUser } = useAuth();
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -25,8 +26,7 @@ export default function SignUpForm({ onSwitch }) {
     const response = await signUp({
       data,
     });
-    console.log("Form data:", data);
-    console.log("response: ", response);
+    setUser(response.user);
   };
 
   return (

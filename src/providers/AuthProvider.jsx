@@ -5,7 +5,6 @@ const AuthContext = createContext(null);
 const checkAuth = async (setUser) => {
   try {
     const response = await apiRequest("/auth/authMe");
-    console.log(response)
     setUser(response.user);
   } catch (error) {
     console.error(error);

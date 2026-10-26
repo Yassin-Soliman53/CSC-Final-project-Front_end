@@ -1,9 +1,10 @@
 import { useState } from "react";
 import signIn from "../API/signIn";
+import { useAuth } from "../providers/AuthProvider";
 
 export default function SignInForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
-
+  const { setUser } = useAuth();
   const [data, setData] = useState({
     email: "",
     password: "",
@@ -23,7 +24,7 @@ export default function SignInForm({ onSwitch }) {
     const response = await signIn({
       data,
     });
-    console.log("Response:", response);
+    setUser(response.user);
   };
 
   const inputClass =
