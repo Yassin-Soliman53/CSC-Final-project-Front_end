@@ -1,6 +1,5 @@
 import { useState } from "react";
 import signUp from "../API/signUp";
-import { data } from "react-router-dom";
 export default function SignUpForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
 
