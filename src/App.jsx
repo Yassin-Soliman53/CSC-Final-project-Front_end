@@ -1,12 +1,9 @@
-import React from 'react';
-import SignIn from './components/sign in page/sign-in';
-
-function App() {
+import SignInPage from './pages/SignIn.jsx';
+export default function App() {
   return (
     <div className="App">
-      <SignIn />
+      <SignInPage />
     </div>
   );
 }
 
-export default App;
