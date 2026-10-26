@@ -1,6 +1,6 @@
 import { useState } from "react";
 import profileImg from "../assets/images/main.png";
-import SignInForm from "../components/signInForm.jsx";
+import SignInForm from "../components/SignInForm.jsx";
 import SignUpForm from "../components/SignUpForm.jsx";
 export default function SignInPage() {
   const [isSignUp, setIsSignUp] = useState(false);
