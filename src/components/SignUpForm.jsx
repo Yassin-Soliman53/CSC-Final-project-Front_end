@@ -1,7 +1,34 @@
 import { useState } from "react";
-
+import signUp from "../API/signUp";
+import { data } from "react-router-dom";
 export default function SignUpForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
+
+  const [data, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    roomNumber: "",
+    phone: "",
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const response = await signUp({
+      data,
+    });
+    console.log("Form data:", data);
+    console.log("response: ", response);
+  };
 
   return (
     <div className="w-full max-w-md text-center overflow-y-auto">
@@ -14,7 +41,7 @@ export default function SignUpForm({ onSwitch }) {
       </h1>
 
       <form
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={handleSubmit}
         className="flex flex-col gap-2.5 text-right"
       >
         <div>
@@ -25,6 +52,8 @@ export default function SignUpForm({ onSwitch }) {
           <input
             type="text"
             name="name"
+            value={data.name}
+            onChange={handleChange}
             placeholder="اسمك يا بيه"
             autoComplete="name"
             className="w-full px-3.5 py-2 text-xs md:text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
@@ -40,6 +69,8 @@ export default function SignUpForm({ onSwitch }) {
           <input
             type="email"
             name="email"
+            value={data.email}
+            onChange={handleChange}
             placeholder="متبقاش فلاح بقا وتسال"
             autoComplete="email"
             className="w-full px-3.5 py-2 text-xs md:text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
@@ -56,6 +87,8 @@ export default function SignUpForm({ onSwitch }) {
             <input
               type={showPassword ? "text" : "password"}
               name="password"
+              value={data.password}
+              onChange={handleChange}
               placeholder="باسورد معقد محدش يخترقه"
               autoComplete="new-password"
               className="w-full px-3.5 py-2 pl-10 text-xs md:text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
@@ -117,8 +150,10 @@ export default function SignUpForm({ onSwitch }) {
 
             <input
               type="number"
-              name="room"
-              placeholder="رقم أو ضتك "
+              name="roomNumber"
+              value={data.roomNumber}
+              onChange={handleChange}
+              placeholder="رقم أو ضتك"
               className="w-full px-3 py-2 text-xs rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
               required
             />
@@ -130,9 +165,11 @@ export default function SignUpForm({ onSwitch }) {
             </label>
 
             <input
-              type="tel"
+              type="number"
               name="phone"
-              placeholder="رقم عليه واتس "
+              value={data.phone}
+              onChange={handleChange}
+              placeholder="رقم عليه واتس"
               pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"
               className="w-full px-3 py-2 text-xs rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
               required
