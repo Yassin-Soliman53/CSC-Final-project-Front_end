@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Sparkles,
@@ -8,22 +8,23 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-import FoodDoodlePattern from "../../components/main-page/FoodDoodlePattern";
-import RestaurantOrderBlock from "../../components/main-page/RestaurantOrderBlock";
-import CustomUploadRestaurantBlock from "../../components/main-page/CustomUploadRestaurantBlock";
-import AnnouncementCard from "../../components/main-page/AnnouncementCard";
-import QuickPickerModal from "../../components/main-page/QuickPickerModal";
-import ZoomedImageModal from "../../components/main-page/ZoomedImageModal";
-import RestaurantSidebar from "../../components/main-page/RestaurantSidebar";
-import EmptyState from "../../components/main-page/EmptyState";
+import FoodDoodlePattern from "../components/main-page/FoodDoodlePattern.jsx";
+import RestaurantOrderBlock from "../components/main-page/RestaurantOrderBlock.jsx";
+import CustomUploadRestaurantBlock from "../components/main-page/CustomUploadRestaurantBlock.jsx";
+import AnnouncementCard from "../components/main-page/AnnouncementCard.jsx";
+import QuickPickerModal from "../components/main-page/QuickPickerModal.jsx";
+import ZoomedImageModal from "../components/main-page/ZoomedImageModal.jsx";
+import RestaurantSidebar from "../components/main-page/RestaurantSidebar.jsx";
+import EmptyState from "../components/main-page/EmptyState.jsx";
 // import LoadingState from "../../components/main-page/LoadingState";
-import { FOUR_RESTAURANTS_CONFIG } from "../../components/main-page/constants/restaurantsConfig.js";
-import { useAuth } from "../../providers/AuthProvider.jsx";
+import { FOUR_RESTAURANTS_CONFIG } from "../components/main-page/constants/restaurantsConfig.js";
+import { useAuth } from "../providers/AuthProvider.jsx";
+import socket from "../API/socketRequest.js";
 
 export default function MainPage() {
   const [isAdmin, setIsAdmin] = useState(true);
 
-  const {user} = useAuth();
+  const { user } = useAuth();
   const [activeScreen, setActiveScreen] = useState("dashboard");
   const [selectedRestaurantKey, setSelectedRestaurantKey] =
     useState("shakshak");
@@ -32,34 +33,13 @@ export default function MainPage() {
   const [customMenuImages, setCustomMenuImages] = useState({});
   const [zoomedMenuImage, setZoomedMenuImage] = useState(null);
 
-  const [announcements, setAnnouncements] = useState([
-    {
-      _id: "ann_1",
-      restaurantName: "شكشك",
-      restaurantNameEn: "SHAK SHAK",
-      collectorName: "ياسين سليمان",
-      roomNumber: "304",
-      phone: "01098765432",
-      status: "open",
-      createdAt: new Date().toISOString(),
-      message:
-        "يا رجالة أنا نازل أجيب من شكشك كمان ربع ساعة، اللي عايز فطيرة رول أو عصير يلحق يسجل طلبه!",
-      menuImage: FOUR_RESTAURANTS_CONFIG.shakshak.defaultMenuImage,
-      items: [
-        {
-          id: "1",
-          name: "فطيرة سوسيس رول (حجم M)",
-          quantity: 1,
-        },
-        {
-          id: "2",
-          name: "عصير قصب فريش (حجم L)",
-          quantity: 2,
-        },
-      ],
-    },
-  ]);
-
+  const [announcements, setAnnouncements] = useState([]);
+  useEffect(() => {
+    socket.connect();
+    socket.on("activeOrders", (respons) => {
+      console.log(respons);
+    });
+  }, []);
   const [requestMessage, setRequestMessage] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
