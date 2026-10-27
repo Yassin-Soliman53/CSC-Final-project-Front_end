@@ -1,6 +1,6 @@
 import React from "react";
 import { X, Upload } from "lucide-react";
-import { FOUR_RESTAURANTS_CONFIG } from "../../constants/restaurantsConfig";
+import { FOUR_RESTAURANTS_CONFIG } from "../constants/restaurantsConfig";
 
 export default function QuickPickerModal({ isOpen, onClose, onSelectRestaurant }) {
   if (!isOpen) return null;

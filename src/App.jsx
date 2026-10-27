@@ -1,9 +1,8 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import SignInPage from "./pages/SignInPage.jsx";
-import MainPage from "./pages/MainPage.jsx";
+import SignInPage from "./pages/SignIn.jsx";
+import MainPage from "./pages/admin/main.admin.jsx";
 import ProtectedRoute from "./utils/protectedRoutes.jsx";
-import "./App.css";
+
 export default function App() {
   return (
     <BrowserRouter>

@@ -1,7 +1,7 @@
 import React from "react";
 import { User, ShieldCheck, Upload } from "lucide-react";
 import FoodDoodlePattern from "./FoodDoodlePattern";
-import { FOUR_RESTAURANTS_CONFIG } from "../../constants/restaurantsConfig";
+import { FOUR_RESTAURANTS_CONFIG } from "../constants/restaurantsConfig";
 
 export default function RestaurantSidebar({
   user,
