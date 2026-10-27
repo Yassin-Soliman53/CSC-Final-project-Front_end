@@ -1,5 +1,5 @@
 import { Megaphone, ShoppingBag } from "lucide-react";
-
+import { useState } from "react";
 export default function EmptyState() {
   const [showHint, setShowHint] = useState(false);
   return (

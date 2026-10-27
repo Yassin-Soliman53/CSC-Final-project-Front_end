@@ -25,8 +25,8 @@ export default function UserSidebar({ user }) {
   return (
     <aside className="min-w-0 rounded-3xl bg-[#FFF9F0] p-4 shadow-sm sm:p-5">
       <div className="mb-5 overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-sm">
-        <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-[#F4A261] p-5 text-white">
-          <div className="pointer-events-none absolute -left-8 -top-10 h-32 w-32 rounded-full border-[18px] border-white/10" />
+        <div className="relative overflow-hidden bg-linear-to-br from-orange-500 to-[#F4A261] p-5 text-white">
+          <div className="pointer-events-none absolute -left-8 -top-10 h-32 w-32 rounded-full border-18 border-white/10" />
 
           <div className="relative flex items-center gap-3">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-white/60 bg-white/20">
@@ -38,7 +38,7 @@ export default function UserSidebar({ user }) {
                 Welcome back
               </p>
 
-              <h2 className="break-words text-xl font-black">{displayName}</h2>
+              <h2 className="wrap-break-words text-xl font-black">{displayName}</h2>
 
               <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold">
                 <ShieldCheck size={13} />
@@ -67,7 +67,7 @@ export default function UserSidebar({ user }) {
 
             <div className="min-w-0">
               <p className="text-xs font-bold text-gray-500">Phone number</p>
-              <p className="break-words text-sm font-black text-gray-800">
+              <p className="wrap-break-words text-sm font-black text-gray-800">
                 {phone}
               </p>
             </div>

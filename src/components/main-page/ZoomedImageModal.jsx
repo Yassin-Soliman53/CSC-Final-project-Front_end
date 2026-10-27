@@ -1,13 +1,12 @@
-import React from "react";
 import { X, Upload } from "lucide-react";
-import { FOUR_RESTAURANTS_CONFIG } from "../constants/restaurantsConfig";
+import { FOUR_RESTAURANTS_CONFIG } from "./constants/restaurantsConfig";
 
 export default function QuickPickerModal({ isOpen, onClose, onSelectRestaurant }) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm font-cairo">
-      <div className="relative w-full max-w-lg rounded-[32px] border-[3px] border-[#4a4a4a] bg-[#FFF4E6] p-6 shadow-2xl">
+      <div className="relative w-full max-w-lg rounded-4xl border-[3px] border-[#4a4a4a] bg-[#FFF4E6] p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between border-b border-[#737373]/30 pb-3">
           <h3 className="text-xl font-black text-[#1a1a1a]">
             اختار المطعم لفتح المنيو وإصدار الأوردر

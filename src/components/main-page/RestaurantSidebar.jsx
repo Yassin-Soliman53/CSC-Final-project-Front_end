@@ -1,7 +1,6 @@
-import React from "react";
 import { User, ShieldCheck, Upload } from "lucide-react";
 import FoodDoodlePattern from "./FoodDoodlePattern";
-import { FOUR_RESTAURANTS_CONFIG } from "../constants/restaurantsConfig";
+import { FOUR_RESTAURANTS_CONFIG } from "./constants/restaurantsConfig";
 
 export default function RestaurantSidebar({
   user,
@@ -13,8 +12,12 @@ export default function RestaurantSidebar({
   onRequestAdmin,
 }) {
   return (
-    <aside className="w-full lg:w-[340px] xl:w-[370px] shrink-0 rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 sm:p-6 shadow-[0_12px_30px_rgba(0,0,0,0.12)] flex flex-col justify-between relative overflow-hidden">
-      <FoodDoodlePattern id="sidebar-doodles" opacity={0.045} strokeColor="#8c6239" />
+    <aside className="w-full lg:w-85 xl:w-92.5 shrink-0 rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 sm:p-6 shadow-[0_12px_30px_rgba(0,0,0,0.12)] flex flex-col justify-between relative overflow-hidden">
+      <FoodDoodlePattern
+        id="sidebar-doodles"
+        opacity={0.045}
+        strokeColor="#8c6239"
+      />
 
       <div className="relative z-10">
         <div className="mb-6 flex items-center justify-center rounded-2xl border-2 border-[#4a4a4a] bg-[#636363] py-3.5 px-4 shadow-inner">
@@ -41,7 +44,8 @@ export default function RestaurantSidebar({
           <div className="flex flex-col gap-3.5">
             {Object.values(FOUR_RESTAURANTS_CONFIG).map((rest) => {
               const isActive =
-                activeScreen === "orderPage" && selectedRestaurantKey === rest.id;
+                activeScreen === "orderPage" &&
+                selectedRestaurantKey === rest.id;
               return (
                 <button
                   key={rest.id}
@@ -70,7 +74,8 @@ export default function RestaurantSidebar({
               <span>صلاحيات الحساب</span>
             </div>
             <p className="mt-2 text-xs leading-6 text-[#555] font-bold">
-              اختيار المطاعم وإصدار إعلان جديد متاح للأدمن (Collector). يمكنك طلب الصلاحية هنا:
+              اختيار المطاعم وإصدار إعلان جديد متاح للأدمن (Collector). يمكنك
+              طلب الصلاحية هنا:
             </p>
             <button
               type="button"
