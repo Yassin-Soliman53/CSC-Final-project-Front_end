@@ -74,7 +74,7 @@ export default function MainPage() {
     socket.on("activeOrders", handleActiveOrders);
     socket.on("connect_error", handleConnectError);
     socket.on("disconnect", handleDisconnect);
-    socket.emit("getActiveOrders")
+    socket.emit("getActiveOrders");
     if (!socket.connected) {
       socket.connect();
     }
@@ -270,17 +270,19 @@ export default function MainPage() {
                 )}
               </div>
 
-              <div className="flex flex-col items-center pt-4">
-                <div className="hex-order-btn w-full max-w-170 bg-[#4a4a4a] p-[2.5px] shadow-md">
-                  <button
-                    type="button"
-                    onClick={() => setIsQuickPickerOpen(true)}
-                    className="hex-order-btn flex w-full cursor-pointer items-center justify-center gap-3 bg-[#737373] py-4 font-cairo text-2xl font-black tracking-wide text-[#111111] transition-colors hover:bg-[#616161] sm:py-5 sm:text-4xl"
-                  >
-                    <span>اطلب هنا</span>
-                  </button>
+              {isAdmin && (
+                <div className="flex flex-col items-center pt-4">
+                  <div className="hex-order-btn w-full max-w-170 bg-[#4a4a4a] p-[2.5px] shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => setIsQuickPickerOpen(true)}
+                      className="hex-order-btn flex w-full cursor-pointer items-center justify-center gap-3 bg-[#737373] py-4 font-cairo text-2xl font-black tracking-wide text-[#111111] transition-colors hover:bg-[#616161] sm:py-5 sm:text-4xl"
+                    >
+                      <span> هرب الأن</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <div className="relative z-10 flex h-full flex-col justify-between">

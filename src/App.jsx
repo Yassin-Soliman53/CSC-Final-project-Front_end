@@ -11,6 +11,7 @@ export default function App() {
         <Route path="/signIn" element={<SignInPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="homepage" element={<MainPage />} />
+          <Route path=":resturant" element/>
         </Route>
       </Routes>
     </BrowserRouter>

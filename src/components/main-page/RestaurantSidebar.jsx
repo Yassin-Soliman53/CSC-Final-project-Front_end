@@ -93,22 +93,24 @@ export default function RestaurantSidebar({
         )}
       </div>
 
-      <div className="relative z-10 mt-8 pt-3">
-        <button
-          type="button"
-          onClick={() => onSelectRestaurant("custom")}
-          className={`w-full rounded-2xl py-2.5 px-4 border-2 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm ${
-            activeScreen === "orderPage" && selectedRestaurantKey === "custom"
-              ? "bg-[#525252] text-white border-[#1a1a1a] ring-4 ring-[#F4A261]/60"
-              : "bg-[#737373] hover:bg-[#616161] text-[#111111] border-[#4f4f4f]"
-          }`}
-        >
-          <Upload className="h-4 w-4" />
-          <span className="font-oswald font-bold text-base sm:text-lg tracking-wider uppercase">
-            ADD RESTAURANT +
-          </span>
-        </button>
-      </div>
+      {isAdmin && (
+        <div className="relative z-10 mt-8 pt-3">
+          <button
+            type="button"
+            onClick={() => onSelectRestaurant("custom")}
+            className={`w-full rounded-2xl py-2.5 px-4 border-2 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm ${
+              activeScreen === "orderPage" && selectedRestaurantKey === "custom"
+                ? "bg-[#525252] text-white border-[#1a1a1a] ring-4 ring-[#F4A261]/60"
+                : "bg-[#737373] hover:bg-[#616161] text-[#111111] border-[#4f4f4f]"
+            }`}
+          >
+            <Upload className="h-4 w-4" />
+            <span className="font-oswald font-bold text-base sm:text-lg tracking-wider uppercase">
+              ADD RESTAURANT +
+            </span>
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
