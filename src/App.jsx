@@ -7,10 +7,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/test" replace />} />
+        <Route path="/" element={<Navigate to="/homepage" replace />} />
         <Route path="/signIn" element={<SignInPage />} />
         <Route element={<ProtectedRoute />}>
-          <Route path="test" element={<MainPage />} />
+          <Route path="homepage" element={<MainPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

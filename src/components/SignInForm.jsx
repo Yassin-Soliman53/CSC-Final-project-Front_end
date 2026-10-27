@@ -1,6 +1,7 @@
 import { useState } from "react";
 import signIn from "../API/signIn";
 import { useAuth } from "../providers/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export default function SignInForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -9,7 +10,7 @@ export default function SignInForm({ onSwitch }) {
     email: "",
     password: "",
   });
-
+  const navigate = useNavigate();
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -21,10 +22,15 @@ export default function SignInForm({ onSwitch }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const response = await signIn({
-      data,
-    });
-    setUser(response.user);
+    try {
+      const response = await signIn({
+        data,
+      });
+      setUser(response.user);
+      navigate("/homepage");
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const inputClass =

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import signUp from "../API/signUp";
 import { useAuth } from "../providers/AuthProvider";
+import { useNavigate } from "react-router-dom";
 export default function SignUpForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -11,6 +12,7 @@ export default function SignUpForm({ onSwitch }) {
     roomNumber: "",
     phone: "",
   });
+  const navigate = useNavigate();
   const { setUser } = useAuth();
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,10 +25,15 @@ export default function SignUpForm({ onSwitch }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const response = await signUp({
-      data,
-    });
-    setUser(response.user);
+    try {
+      const response = await signUp({
+        data,
+      });
+      setUser(response.user);
+      navigate("/homepage");
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (

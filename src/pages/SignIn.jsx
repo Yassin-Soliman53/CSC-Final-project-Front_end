@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import profileImg from "../assets/images/main.png";
 import SignInForm from "../components/SignInForm.jsx"; // Ensure this filename matches your actual file
 import SignUpForm from "../components/SignUpForm.jsx";
+import signOut from "../API/signOut.js";
 
 export default function SignInPage() {
   const [isSignUp, setIsSignUp] = useState(false);
-
+  useEffect(() => {
+    signOut();
+  }, []);
   return (
     <div
       className="min-h-screen w-full bg-[#153443] flex items-center justify-center p-4 md:p-8 overflow-hidden select-none"
