@@ -1,13 +1,12 @@
-import React from "react";
-import { User, DoorOpen, Phone, Trash2, ZoomIn, MessageSquare } from "lucide-react";
+import {
+  User,
+  DoorOpen,
+  Phone,
+  ZoomIn,
+  MessageSquare,
+} from "lucide-react";
 
-export default function AnnouncementCard({
-  announcement,
-  user,
-  isAdmin,
-  onDelete,
-  onZoomImage,
-}) {
+export default function AnnouncementCard({ announcement, user, onZoomImage }) {
   return (
     <article className="overflow-hidden rounded-3xl border-2 border-[#737373]/50 bg-white/90 shadow-md transition hover:shadow-lg">
       <div className="flex flex-wrap items-center justify-between gap-2 bg-[#737373] px-5 py-3 text-[#FFF4E6]">
@@ -34,16 +33,6 @@ export default function AnnouncementCard({
           <span className="rounded-full bg-[#F4A261] px-3 py-0.5 text-xs font-black text-[#1a1a1a]">
             {announcement.restaurantName}
           </span>
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => onDelete(announcement._id)}
-              className="rounded-lg bg-red-500/20 hover:bg-red-500 p-1.5 text-white transition cursor-pointer"
-              title="إلغاء الإعلان"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
 
@@ -58,7 +47,7 @@ export default function AnnouncementCard({
               alt={announcement.restaurantName}
               className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-3">
+            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-3">
               <span className="text-xs font-black text-white">
                 منيو {announcement.restaurantName}
               </span>
@@ -77,27 +66,6 @@ export default function AnnouncementCard({
               {announcement.message}
             </p>
           </div>
-
-          {announcement.items && announcement.items.length > 0 && (
-            <div className="rounded-2xl bg-gray-50 p-3 border border-gray-200">
-              <span className="block text-xs font-black text-[#555] mb-2">
-                طلب الأدمن المبدئي في هذا الأوردر:
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {announcement.items.map((item, i) => (
-                  <span
-                    key={item.id || i}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[#737373] px-3 py-1 text-xs font-bold text-[#FFF4E6]"
-                  >
-                    <span>{item.name}</span>
-                    <span className="rounded-full bg-[#F4A261] px-1.5 text-[10px] font-black text-[#1a1a1a]">
-                      ×{item.quantity || 1}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </article>
