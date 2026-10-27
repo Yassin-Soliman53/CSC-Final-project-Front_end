@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Sparkles,
-  RefreshCw,
   Megaphone,
   Upload,
   CheckCircle2,
@@ -37,17 +36,14 @@ export default function MainPage() {
   useEffect(() => {
     socket.connect();
     socket.on("activeOrders", (respons) => {
+      setAnnouncements(respons)
       console.log(respons);
     });
   }, []);
   const [requestMessage, setRequestMessage] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
-  // تحديث الإعلانات محليًا فقط
-  const handleRefresh = () => {
-    setToastMessage("الإعلانات المعروضة محدثة بالفعل.");
-    setTimeout(() => setToastMessage(""), 3000);
-  };
+  
 
   // فتح بلوك المطعم المحدد
   const handleOpenRestaurantBlock = (restKey) => {
@@ -166,15 +162,6 @@ export default function MainPage() {
             className="rounded-full border border-[#4a4a4a] bg-[#FFF4E6] hover:bg-white px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] cursor-pointer shadow-sm"
           >
             تبديل الصلاحية: {isAdmin ? "Admin ✓" : "User"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#4a4a4a] bg-[#737373] hover:bg-[#5e5e5e] px-3.5 py-1.5 text-xs font-bold text-[#FFF4E6] cursor-pointer"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>تحديث</span>
           </button>
         </div>
       </div>
