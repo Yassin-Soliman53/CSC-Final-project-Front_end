@@ -15,7 +15,8 @@ import QuickPickerModal from "../components/main-page/QuickPickerModal.jsx";
 import ZoomedImageModal from "../components/main-page/ZoomedImageModal.jsx";
 import RestaurantSidebar from "../components/main-page/RestaurantSidebar.jsx";
 import EmptyState from "../components/main-page/EmptyState.jsx";
-// import LoadingState from "../../components/main-page/LoadingState";
+import LoadingState from "../components/main-page/LoadingState.jsx";
+
 import { FOUR_RESTAURANTS_CONFIG } from "../components/main-page/constants/restaurantsConfig.js";
 import { useAuth } from "../providers/AuthProvider.jsx";
 import socket from "../API/socketRequest.js";
@@ -24,6 +25,7 @@ export default function MainPage() {
   const [isAdmin, setIsAdmin] = useState(true);
 
   const { user } = useAuth();
+
   const [activeScreen, setActiveScreen] = useState("dashboard");
   const [selectedRestaurantKey, setSelectedRestaurantKey] =
     useState("shakshak");
@@ -33,26 +35,67 @@ export default function MainPage() {
   const [zoomedMenuImage, setZoomedMenuImage] = useState(null);
 
   const [announcements, setAnnouncements] = useState([]);
-  useEffect(() => {
-    socket.connect();
-    socket.on("activeOrders", (respons) => {
-      setAnnouncements(respons)
-      console.log(respons);
-    });
-  }, []);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [requestMessage, setRequestMessage] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
-  
+  // Fetch active orders through Socket.IO
+  useEffect(() => {
+    let isMounted = true;
 
-  // فتح بلوك المطعم المحدد
+    const handleActiveOrders = (response) => {
+      const orders = Array.isArray(response) ? response : response?.orders;
+
+      if (!Array.isArray(orders)) {
+        console.error("Invalid activeOrders response:", response);
+
+        if (isMounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
+      if (isMounted) {
+        setAnnouncements(orders);
+        setIsLoading(false);
+      }
+      console.log("Active orders:", orders);
+    };
+    const handleConnectError = (error) => {
+      console.error("Socket connection error:", error.message);
+
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    };
+    const handleDisconnect = (reason) => {
+      console.log("Socket disconnected:", reason);
+    };
+    socket.on("activeOrders", handleActiveOrders);
+    socket.on("connect_error", handleConnectError);
+    socket.on("disconnect", handleDisconnect);
+    socket.emit("getActiveOrders")
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      isMounted = false;
+
+      socket.off("activeOrders", handleActiveOrders);
+      socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
+    };
+  }, []);
+
+  // Open the selected restaurant
   const handleOpenRestaurantBlock = (restKey) => {
     setSelectedRestaurantKey(restKey);
     setActiveScreen("orderPage");
     setIsQuickPickerOpen(false);
   };
 
-  // رفع صورة منيو محليًا
+  // Upload a restaurant menu image locally
   const handleUploadMenuImage = (restKey, imageUrl) => {
     setCustomMenuImages((prev) => ({
       ...prev,
@@ -60,15 +103,15 @@ export default function MainPage() {
     }));
   };
 
-  // إصدار أوردر وإضافته للإعلانات محليًا
+  // Handle issuing a new order
   const handleIssueNewOrder = (orderPayload) => {
     const newAnnouncement = {
       _id: `ann_${Date.now()}`,
       restaurantName: orderPayload.restaurantNameAr,
       restaurantNameEn: orderPayload.restaurantNameEn,
-      collectorName: user.name,
-      roomNumber: user.roomNumber,
-      phone: user.phone,
+      collectorName: user?.name,
+      roomNumber: user?.roomNumber,
+      phone: user?.phone,
       status: "open",
       createdAt: new Date().toISOString(),
       message: orderPayload.message,
@@ -83,20 +126,15 @@ export default function MainPage() {
       `تم إصدار أوردر (${orderPayload.restaurantNameAr}) ونشر المنيو بنجاح!`,
     );
 
-    setTimeout(() => setToastMessage(""), 4000);
-  };
-
-  // حذف إعلان محليًا
-  const handleDeleteAnnouncement = (id) => {
-    setAnnouncements((prev) =>
-      prev.filter((announcement) => announcement._id !== id),
-    );
+    setTimeout(() => {
+      setToastMessage("");
+    }, 4000);
   };
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-x-hidden bg-[#F4A261] p-3 sm:p-6 md:p-8 text-[#1a1a1a] select-none"
       dir="rtl"
+      className="relative min-h-screen w-full overflow-x-hidden bg-[#F4A261] p-3 text-[#1a1a1a] select-none sm:p-6 md:p-8"
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&family=Oswald:wght@500;600;700&display=swap');
@@ -138,18 +176,19 @@ export default function MainPage() {
         }
       `}</style>
 
-      {/* الشريط العلوي */}
+      {/* Top bar */}
       <div className="relative z-10 mx-auto mb-4 flex max-w-360 flex-wrap items-center justify-between gap-3 font-cairo">
         <div className="inline-flex items-center gap-2 rounded-full border border-[#4a4a4a] bg-[#FFF4E6]/95 px-4 py-1.5 shadow-sm">
           <Sparkles className="h-4 w-4 text-[#F4A261]" />
-          <span className="text-xs sm:text-sm font-black">
+
+          <span className="text-xs font-black sm:text-sm">
             لوحة إعلانات الدليفري (
             {isAdmin ? "وضع الأدمن / الكوليكتور" : "وضع المستخدم"})
           </span>
         </div>
 
         {toastMessage && (
-          <div className="flex items-center gap-2 rounded-full border-2 border-[#1a1a1a] bg-[#737373] px-5 py-1.5 text-xs sm:text-sm font-black text-[#FFF4E6] shadow-lg">
+          <div className="flex items-center gap-2 rounded-full border-2 border-[#1a1a1a] bg-[#737373] px-5 py-1.5 text-xs font-black text-[#FFF4E6] shadow-lg sm:text-sm">
             <CheckCircle2 className="h-4 w-4 text-[#F4A261]" />
             <span>{toastMessage}</span>
           </div>
@@ -159,15 +198,15 @@ export default function MainPage() {
           <button
             type="button"
             onClick={() => setIsAdmin((prev) => !prev)}
-            className="rounded-full border border-[#4a4a4a] bg-[#FFF4E6] hover:bg-white px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] cursor-pointer shadow-sm"
+            className="cursor-pointer rounded-full border border-[#4a4a4a] bg-[#FFF4E6] px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] shadow-sm hover:bg-white"
           >
             تبديل الصلاحية: {isAdmin ? "Admin ✓" : "User"}
           </button>
         </div>
       </div>
 
-      {/* التخطيط الرئيسي */}
-      <div className="relative z-10 mx-auto flex max-w-360 flex-col lg:flex-row gap-6 items-stretch font-cairo">
+      {/* Main layout */}
+      <div className="relative z-10 mx-auto flex max-w-360 flex-col items-stretch gap-6 font-cairo lg:flex-row">
         <RestaurantSidebar
           isAdmin={isAdmin}
           user={user}
@@ -182,7 +221,7 @@ export default function MainPage() {
           }
         />
 
-        <main className="flex-1 rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 sm:p-8 shadow-[0_12px_30px_rgba(0,0,0,0.12)] flex flex-col justify-between relative overflow-hidden min-h-160">
+        <main className="relative flex min-h-160 flex-1 flex-col justify-between overflow-hidden rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 shadow-[0_12px_30px_rgba(0,0,0,0.12)] sm:p-8">
           <FoodDoodlePattern
             id="main-card-doodles"
             opacity={0.045}
@@ -196,45 +235,47 @@ export default function MainPage() {
                   <div>
                     <div className="flex items-center gap-2 text-[#737373]">
                       <Megaphone className="h-5 w-5 text-[#F4A261]" />
-                      <span className="font-oswald text-xs font-bold tracking-widest uppercase">
+
+                      <span className="font-oswald text-xs font-bold uppercase tracking-widest">
                         ANNOUNCEMENTS FEED
                       </span>
                     </div>
 
-                    <h1 className="mt-1 text-2xl sm:text-3xl font-black text-[#1a1a1a]">
+                    <h1 className="mt-1 text-2xl font-black text-[#1a1a1a] sm:text-3xl">
                       الإعلانات الحالية والدليفري المتاح
                     </h1>
                   </div>
 
                   <span className="rounded-full bg-[#737373] px-4 py-1.5 text-xs font-black text-[#FFF4E6]">
-                    {announcements.length} إعلانات نشطة
+                    {isLoading
+                      ? "جاري التحميل..."
+                      : `${announcements.length} إعلانات نشطة`}
                   </span>
                 </div>
 
-                {announcements.length === 0 ? (
+                {isLoading ? (
+                  <LoadingState />
+                ) : announcements.length === 0 ? (
                   <EmptyState />
                 ) : (
                   <div className="grid grid-cols-1 gap-5">
                     {announcements.map((announcement) => (
                       <AnnouncementCard
-                        key={announcement._id}
+                        key={announcement._id || announcement.id}
                         announcement={announcement}
-                        user={user}
-                        isAdmin={isAdmin}
-                        onDelete={handleDeleteAnnouncement}
-                        onPreviewImage={setZoomedMenuImage}
+                        onZoomImage={setZoomedMenuImage}
                       />
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="pt-4 flex flex-col items-center">
-                <div className="w-full max-w-170 p-[2.5px] bg-[#4a4a4a] hex-order-btn shadow-md">
+              <div className="flex flex-col items-center pt-4">
+                <div className="hex-order-btn w-full max-w-170 bg-[#4a4a4a] p-[2.5px] shadow-md">
                   <button
                     type="button"
                     onClick={() => setIsQuickPickerOpen(true)}
-                    className="w-full py-4 sm:py-5 bg-[#737373] hover:bg-[#616161] text-[#111111] font-cairo font-black text-2xl sm:text-4xl tracking-wide hex-order-btn transition-colors cursor-pointer flex items-center justify-center gap-3"
+                    className="hex-order-btn flex w-full cursor-pointer items-center justify-center gap-3 bg-[#737373] py-4 font-cairo text-2xl font-black tracking-wide text-[#111111] transition-colors hover:bg-[#616161] sm:py-5 sm:text-4xl"
                   >
                     <span>اطلب هنا</span>
                   </button>
@@ -243,14 +284,14 @@ export default function MainPage() {
             </div>
           ) : (
             <div className="relative z-10 flex h-full flex-col justify-between">
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#737373]/15 p-2.5 border border-[#737373]/30">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#737373]/30 bg-[#737373]/15 p-2.5">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {Object.values(FOUR_RESTAURANTS_CONFIG).map((restaurant) => (
                     <button
                       key={restaurant.id}
                       type="button"
                       onClick={() => setSelectedRestaurantKey(restaurant.id)}
-                      className={`rounded-xl px-3.5 py-1.5 text-xs font-black transition cursor-pointer ${
+                      className={`cursor-pointer rounded-xl px-3.5 py-1.5 text-xs font-black transition ${
                         selectedRestaurantKey === restaurant.id
                           ? "bg-[#737373] text-[#FFF4E6] shadow"
                           : "bg-white/70 text-[#3a3a3a] hover:bg-white"
@@ -263,9 +304,9 @@ export default function MainPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedRestaurantKey("custom")}
-                    className={`rounded-xl px-3.5 py-1.5 text-xs font-black transition cursor-pointer flex items-center gap-1 ${
+                    className={`flex cursor-pointer items-center gap-1 rounded-xl px-3.5 py-1.5 text-xs font-black transition ${
                       selectedRestaurantKey === "custom"
-                        ? "bg-[#F4A261] text-[#1a1a1a] border border-[#1a1a1a]"
+                        ? "border border-[#1a1a1a] bg-[#F4A261] text-[#1a1a1a]"
                         : "bg-white/70 text-[#3a3a3a] hover:bg-white"
                     }`}
                   >
@@ -277,7 +318,7 @@ export default function MainPage() {
                 <button
                   type="button"
                   onClick={() => setActiveScreen("dashboard")}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#737373] hover:bg-[#555] px-4 py-1.5 text-xs font-black text-[#FFF4E6] cursor-pointer"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-[#737373] px-4 py-1.5 text-xs font-black text-[#FFF4E6] hover:bg-[#555]"
                 >
                   <span>الرجوع للإعلانات</span>
                   <ArrowLeft className="h-3.5 w-3.5" />
@@ -307,7 +348,7 @@ export default function MainPage() {
         </main>
       </div>
 
-      {/* نافذة اختيار المطعم */}
+      {/* Restaurant picker modal */}
       {isQuickPickerOpen && (
         <QuickPickerModal
           restaurants={FOUR_RESTAURANTS_CONFIG}
@@ -316,7 +357,7 @@ export default function MainPage() {
         />
       )}
 
-      {/* نافذة تكبير الصورة */}
+      {/* Image zoom modal */}
       {zoomedMenuImage && (
         <ZoomedImageModal
           image={zoomedMenuImage}
