@@ -1,9 +1,11 @@
 import { useState } from "react";
 import signUp from "../API/signUp";
-import { useAuth } from "../providers/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import useAuth from "../providers/useAuth.js";
+import { useLocation, useNavigate } from "react-router-dom";
 export default function SignUpForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [data, setFormData] = useState({
     name: "",
@@ -13,6 +15,7 @@ export default function SignUpForm({ onSwitch }) {
     phone: "",
   });
   const navigate = useNavigate();
+  const location = useLocation();
   const { setUser } = useAuth();
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,14 +28,24 @@ export default function SignUpForm({ onSwitch }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
     try {
       const response = await signUp({
         data,
       });
       setUser(response.user);
-      navigate("/homepage");
+      navigate(location.state?.from?.pathname || "/homepage", { replace: true });
     } catch (error) {
-      console.error(error);
+      setErrorMessage(
+        error.status === 409
+          ? "البريد الإلكتروني مسجل بالفعل."
+          : error.status === 400
+            ? "راجع البيانات: كلمة المرور 8 أحرف على الأقل ورقم الهاتف صحيح."
+            : error.message || "تعذر إنشاء الحساب. حاول مرة أخرى.",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -62,6 +75,8 @@ export default function SignUpForm({ onSwitch }) {
             onChange={handleChange}
             placeholder="اسمك يا بيه"
             autoComplete="name"
+            minLength={2}
+            maxLength={50}
             className="w-full px-3.5 py-2 text-xs md:text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
             required
           />
@@ -79,6 +94,7 @@ export default function SignUpForm({ onSwitch }) {
             onChange={handleChange}
             placeholder="متبقاش فلاح بقا وتسال"
             autoComplete="email"
+            maxLength={254}
             className="w-full px-3.5 py-2 text-xs md:text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
             required
           />
@@ -97,6 +113,8 @@ export default function SignUpForm({ onSwitch }) {
               onChange={handleChange}
               placeholder="باسورد معقد محدش يخترقه"
               autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
               className="w-full px-3.5 py-2 pl-10 text-xs md:text-sm rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
               required
             />
@@ -171,12 +189,15 @@ export default function SignUpForm({ onSwitch }) {
             </label>
 
             <input
-              type="number"
+              type="tel"
               name="phone"
               value={data.phone}
               onChange={handleChange}
               placeholder="رقم عليه واتس"
-              pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"
+              autoComplete="tel"
+              inputMode="tel"
+              pattern="\+?[0-9]{10,15}"
+              title="اكتب رقمًا من 10 إلى 15 رقمًا، ويمكن أن يبدأ بعلامة +"
               className="w-full px-3 py-2 text-xs rounded-xl border border-[#1a1f2c]/20 bg-white text-[#1a1f2c] focus:outline-none focus:border-[#153443] shadow-sm"
               required
             />
@@ -185,10 +206,16 @@ export default function SignUpForm({ onSwitch }) {
 
         <button
           type="submit"
-          className="mt-2 w-full py-3 bg-[#153443] hover:bg-[#0c222c] text-white font-black rounded-xl shadow-lg transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+          disabled={isSubmitting}
+          className="mt-2 w-full py-3 bg-[#153443] hover:bg-[#0c222c] text-white font-black rounded-xl shadow-lg transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-wait disabled:opacity-60"
         >
-          يلا بينا !!
+          {isSubmitting ? "جاري إنشاء الحساب..." : "يلا بينا !!"}
         </button>
+        {errorMessage && (
+          <p role="alert" className="text-sm font-bold text-red-700">
+            {errorMessage}
+          </p>
+        )}
       </form>
 
       <button

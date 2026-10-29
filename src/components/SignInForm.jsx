@@ -1,16 +1,19 @@
 import { useState } from "react";
 import signIn from "../API/signIn";
-import { useAuth } from "../providers/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import useAuth from "../providers/useAuth.js";
+import { useLocation, useNavigate } from "react-router-dom";
 
-export default function SignInForm({ onSwitch }) {
+export default function SignInForm({ onSwitch, onForgotPassword }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { setUser } = useAuth();
   const [data, setData] = useState({
     email: "",
     password: "",
   });
   const navigate = useNavigate();
+  const location = useLocation();
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -22,14 +25,22 @@ export default function SignInForm({ onSwitch }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
     try {
       const response = await signIn({
         data,
       });
       setUser(response.user);
-      navigate("/homepage");
+      navigate(location.state?.from?.pathname || "/homepage", { replace: true });
     } catch (error) {
-      console.error(error);
+      setErrorMessage(
+        error.status === 401
+          ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+          : error.message || "تعذر تسجيل الدخول. حاول مرة أخرى.",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,11 +158,25 @@ export default function SignInForm({ onSwitch }) {
         {/* Submit */}
         <button
           type="submit"
-          className="mt-2 w-full py-3.5 bg-[#E4572E] hover:bg-[#c9451e] text-white font-black rounded-xl shadow-lg transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+          disabled={isSubmitting}
+          className="mt-2 w-full py-3.5 bg-[#E4572E] hover:bg-[#c9451e] text-white font-black rounded-xl shadow-lg transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-wait disabled:opacity-60"
         >
-          خش من هنا
+          {isSubmitting ? "جاري تسجيل الدخول..." : "خش من هنا"}
         </button>
+        {errorMessage && (
+          <p role="alert" className="text-sm font-bold text-red-700">
+            {errorMessage}
+          </p>
+        )}
       </form>
+
+      <button
+        type="button"
+        onClick={onForgotPassword}
+        className="mt-3 text-xs font-bold text-[#1a1f2c]/80 underline hover:text-[#E4572E]"
+      >
+        نسيت كلمة المرور؟
+      </button>
 
       <button
         type="button"

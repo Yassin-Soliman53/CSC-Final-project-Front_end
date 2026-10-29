@@ -1,3 +1,5 @@
+import shakshakPizzaMenu from "../../../assets/images/WhatsApp Image 2026-10-26 at 19.53.52.jpeg";
+
 export const ROUTES = {
   placeOrder: "/createOrder",
   collectOrders: "/collectOrders",
@@ -25,6 +27,7 @@ export const FOUR_RESTAURANTS_CONFIG = {
     id: "shakshak",
     nameAr: "شكشك",
     nameEn: "SHAK SHAK",
+    deliveryFees: 5,
 
     defaultMessage:
       "يا رجالة أنا نازل أجيب من شكشك، اللي عايز يطلب يلحق يسجل طلبه دلوقتي!",
@@ -299,8 +302,7 @@ export const FOUR_RESTAURANTS_CONFIG = {
       item("sh_legacy_06", "فطيرة كاستر", { S: 70, M: 100, L: 150 }),
     ],
 
-    defaultMenuImage:
-      "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=1200&q=80",
+    defaultMenuImage: shakshakPizzaMenu,
   },
 };
 

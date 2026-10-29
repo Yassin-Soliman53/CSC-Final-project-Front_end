@@ -1,13 +1,15 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import apiRequest from "../API/apirequest.js";
-const AuthContext = createContext(null);
+import AuthContext from "./AuthContext.js";
 
 const checkAuth = async (setUser, setLoading) => {
   try {
     const response = await apiRequest("/auth/authMe");
     setUser(response.user);
   } catch (error) {
-    console.error(error);
+    if (error.status !== 401 && error.status !== 0) {
+      console.error("Could not verify the current user:", error);
+    }
     setUser(null);
   } finally {
     setLoading(false);
@@ -32,8 +34,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

@@ -49,10 +49,10 @@ export default function MenuItemCard({
   };
 
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-orange-200">
+    <article className="rounded-2xl border border-[#737373]/30 bg-white/90 p-4 shadow-sm transition hover:border-[#F4A261]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-bold text-gray-900">{item.name}</h3>
+          <h3 className="font-bold text-[#1a1a1a]">{item.name}</h3>
 
           {item.description && (
             <p className="mt-1 text-sm leading-6 text-gray-500">
@@ -62,14 +62,14 @@ export default function MenuItemCard({
         </div>
 
         {availableSizes.length === 1 && !availableSizes[0].code && (
-          <p className="shrink-0 font-bold text-orange-600">
+          <p className="shrink-0 font-bold text-[#737373]">
             {availableSizes[0].price} ج.م
           </p>
         )}
       </div>
 
       {availableSizes.length === 0 ? (
-        <p className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-500">
+        <p className="mt-4 rounded-lg bg-[#FFF4E6] p-3 text-sm text-[#737373]">
           السعر غير متاح حاليًا.
         </p>
       ) : (
@@ -83,16 +83,16 @@ export default function MenuItemCard({
                 key={size.code || "default"}
                 className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition ${
                   quantity > 0
-                    ? "border-orange-300 bg-orange-50"
-                    : "border-gray-100 bg-gray-50"
+                    ? "border-[#F4A261] bg-[#F4A261]/15"
+                    : "border-[#737373]/15 bg-[#FFF4E6]"
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <div
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
                       quantity > 0
-                        ? "border-orange-600 bg-orange-600 text-white"
-                        : "border-gray-300 bg-white"
+                        ? "border-[#737373] bg-[#737373] text-white"
+                        : "border-[#737373]/40 bg-white"
                     }`}
                     aria-hidden="true"
                   >
@@ -100,11 +100,11 @@ export default function MenuItemCard({
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-800">
+                    <p className="text-sm font-semibold text-[#1a1a1a]">
                       {size.label || "الحجم العادي"}
                     </p>
 
-                    <p className="mt-1 text-sm font-bold text-orange-600">
+                    <p className="mt-1 text-sm font-bold text-[#737373]">
                       {size.price} ج.م
                     </p>
                   </div>
@@ -116,7 +116,7 @@ export default function MenuItemCard({
                     onClick={() => updateQuantity(size, quantity - 1)}
                     disabled={quantity === 0}
                     aria-label={`تقليل كمية ${item.name}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#737373]/30 bg-white text-[#1a1a1a] hover:bg-[#FFF4E6] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Minus size={15} />
                   </button>
@@ -132,7 +132,7 @@ export default function MenuItemCard({
                     type="button"
                     onClick={() => updateQuantity(size, quantity + 1)}
                     aria-label={`زيادة كمية ${item.name}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600 text-white hover:bg-orange-700"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F4A261] text-[#1a1a1a] hover:bg-[#e9954e]"
                   >
                     <Plus size={15} />
                   </button>

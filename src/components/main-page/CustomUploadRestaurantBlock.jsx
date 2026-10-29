@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Upload } from "lucide-react";
 
 export default function CustomUploadRestaurantBlock({ isVisible, onIssueOrder }) {
   const [restaurantName, setRestaurantName] = useState("");
   const [customItemName, setCustomItemName] = useState("");
   const [selectedSize, setSelectedSize] = useState("M");
+  const [deliveryFees, setDeliveryFees] = useState(5);
   const [message, setMessage] = useState("");
   const [uploadedImage, setUploadedImage] = useState(null);
 
@@ -23,6 +24,7 @@ export default function CustomUploadRestaurantBlock({ isVisible, onIssueOrder })
       restaurantId: `custom_${Date.now()}`,
       restaurantNameAr: restaurantName,
       restaurantNameEn: restaurantName.toUpperCase(),
+      deliveryFees,
       size: selectedSize,
       items: [
         {
@@ -74,14 +76,25 @@ export default function CustomUploadRestaurantBlock({ isVisible, onIssueOrder })
             <label className="block text-sm font-black text-[#1a1a1a] mb-1.5">
               طلب الأدمن الشخصي من المنيو
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={customItemName}
               onChange={(e) => setCustomItemName(e.target.value)}
-              placeholder="اكتب الصنف اللي هتطلبه لنفسك..."
-              className="w-full rounded-2xl border-2 border-[#737373] bg-[#FFF4E6] px-4 py-2.5 text-sm font-bold"
+              placeholder="اكتب طلبك بالتفصيل..."
+              className="w-full resize-y rounded-2xl border-2 border-[#737373] bg-[#FFF4E6] px-4 py-2.5 text-sm font-bold"
             />
           </div>
+          <label className="block text-sm font-black text-[#1a1a1a]">
+            مصاريف التوصيل للضيف
+            <select
+              value={deliveryFees}
+              onChange={(e) => setDeliveryFees(Number(e.target.value))}
+              className="mt-1 w-full rounded-2xl border-2 border-[#737373] bg-[#FFF4E6] px-4 py-2.5 text-sm font-bold"
+            >
+              <option value={5}>5 جنيه</option>
+              <option value={10}>10 جنيه</option>
+            </select>
+          </label>
 
           <div className="flex items-center gap-6">
             <span className="rounded-xl bg-[#737373] px-4 py-2 text-sm font-black text-[#FFF4E6]">

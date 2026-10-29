@@ -1,6 +1,6 @@
 const apiRequest = async (endpoint, options = {}) => {
   try {
-    const URL = import.meta.env.VITE_API_URL
+    const URL = import.meta.env.VITE_API_URL;
     const response = await fetch(`${URL}${endpoint}`, {
       ...options,
       credentials: "include",
@@ -16,6 +16,7 @@ const apiRequest = async (endpoint, options = {}) => {
       throw {
         status: response.status,
         error: data.error || "SERVER_ERROR",
+        message: data.message,
       };
     }
 
@@ -28,6 +29,7 @@ const apiRequest = async (endpoint, options = {}) => {
     throw {
       status: 0,
       error: "NETWORK_ERROR",
+      message: "تعذر الاتصال بالخادم. تأكد من تشغيل الباك إند وحاول مرة أخرى.",
     };
   }
 };

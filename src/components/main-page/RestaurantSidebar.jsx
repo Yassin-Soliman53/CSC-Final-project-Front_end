@@ -11,12 +11,14 @@ export default function RestaurantSidebar({
   requestMessage,
   onRequestAdmin,
 }) {
+  const displayName = user?.name ?? "User";
+  const roomNumber = user?.roomNumber ?? "—";
+  const phone = user?.phone ?? "—";
+
   return (
     <aside className="w-full lg:w-85 xl:w-92.5 shrink-0 rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 sm:p-6 shadow-[0_12px_30px_rgba(0,0,0,0.12)] flex flex-col justify-between relative overflow-hidden">
       <FoodDoodlePattern
-        id="sidebar-doodles"
         opacity={0.045}
-        strokeColor="#8c6239"
       />
 
       <div className="relative z-10">
@@ -32,9 +34,9 @@ export default function RestaurantSidebar({
               <User className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-black">{user.name}</p>
+              <p className="text-sm font-black">{displayName}</p>
               <p className="text-[11px] text-[#555]">
-                أوضة {user.roomNumber} - {user.phone}
+                أوضة {roomNumber} - {phone}
               </p>
             </div>
           </div>

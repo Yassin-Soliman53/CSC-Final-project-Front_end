@@ -8,11 +8,20 @@ import {
   ClipboardList,
   Clock3,
   ShoppingCart,
+  CircleX,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
+import shakshakBrandImage from "../../assets/images/Gemini_Generated_Image_gtewtogtewtogtew.jpg";
 
-export default function AnnouncementCard({ announcement, onZoomImage }) {
+export default function AnnouncementCard({
+  announcement,
+  onZoomImage,
+  isAdmin = false,
+  onClose,
+  orderCount = 0,
+  deliveryCollected = 0,
+}) {
   const navigate = useNavigate();
   
   const restaurant = announcement?.restaurant;
@@ -49,6 +58,12 @@ export default function AnnouncementCard({ announcement, onZoomImage }) {
 
   const deadline = formatDate(settings?.deadline);
   const createdAt = formatDate(announcement?.createdAt);
+  const isShakshak = restaurant?.key === "shakshak";
+  const deliveryTarget = Number(settings?.targetDeliveryAmount || 0);
+  const deliveryProgress =
+    deliveryTarget > 0
+      ? Math.min((deliveryCollected / deliveryTarget) * 100, 100)
+      : 0;
 
   const handleOrderNow = () => {
     const orderId = announcement?._id || announcement?.id;
@@ -58,7 +73,7 @@ export default function AnnouncementCard({ announcement, onZoomImage }) {
       return;
     }
 
-    navigate(`/orders/${orderId}`);
+    navigate(`/orders/${orderId}`, { state: { announcement } });
   };
 
   return (
@@ -66,6 +81,16 @@ export default function AnnouncementCard({ announcement, onZoomImage }) {
       dir="rtl"
       className="overflow-hidden rounded-3xl border-2 border-[#737373]/50 bg-white/90 shadow-md transition hover:shadow-lg"
     >
+      {isShakshak && (
+        <div className="relative overflow-hidden bg-[#080d26]">
+          <img
+            src={shakshakBrandImage}
+            alt="شكشك - بيتزا وفطائر وحواوشي"
+            className="aspect-[2.4/1] w-full object-cover object-center"
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-[#737373] px-5 py-4 text-[#FFF4E6]">
         <div className="flex min-w-0 items-center gap-3">
@@ -110,6 +135,16 @@ export default function AnnouncementCard({ announcement, onZoomImage }) {
             <span className="rounded-full border border-white/30 px-3 py-1.5 text-xs font-bold">
               {statusLabels[announcement.status] || announcement.status}
             </span>
+          )}
+          {isAdmin && announcement?.status === "open" && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1 rounded-full border border-white/40 px-3 py-1.5 text-xs font-bold transition hover:bg-white/15"
+            >
+              <CircleX className="h-4 w-4" />
+              إغلاق الإعلان
+            </button>
           )}
         </div>
       </div>
@@ -180,6 +215,36 @@ export default function AnnouncementCard({ announcement, onZoomImage }) {
               </div>
             </div>
           )}
+
+          <div className="rounded-2xl border border-[#737373]/30 bg-white p-3.5">
+            <p className="text-sm font-black text-[#1a1a1a]">
+              عدد الطلبات المسجلة: {orderCount}
+            </p>
+            {settings?.closingPolicy === "delivery_target" &&
+              deliveryTarget > 0 && (
+                <div className="mt-2">
+                  <div className="mb-1 flex justify-between gap-2 text-xs font-bold text-[#737373]">
+                    <span>رسوم التوصيل المجمعة</span>
+                    <span>
+                      {deliveryCollected} / {deliveryTarget} ج.م
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-[#737373]/15"
+                    role="progressbar"
+                    aria-label="التقدم نحو هدف رسوم التوصيل"
+                    aria-valuemin={0}
+                    aria-valuemax={deliveryTarget}
+                    aria-valuenow={Math.min(deliveryCollected, deliveryTarget)}
+                  >
+                    <div
+                      className="h-full rounded-full bg-[#F4A261] transition-[width]"
+                      style={{ width: `${deliveryProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+          </div>
 
           {/* Order settings */}
           {settings?.closingPolicy && (

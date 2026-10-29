@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Sparkles,
   Megaphone,
   Upload,
   CheckCircle2,
+  ClipboardList,
 } from "lucide-react";
 
 import FoodDoodlePattern from "../components/main-page/FoodDoodlePattern.jsx";
-import RestaurantOrderBlock from "../components/main-page/RestaurantOrderBlock.jsx";
+import AdminOrderBuilder from "../components/main-page/AdminOrderBuilder.jsx";
 import CustomUploadRestaurantBlock from "../components/main-page/CustomUploadRestaurantBlock.jsx";
 import AnnouncementCard from "../components/main-page/AnnouncementCard.jsx";
 import QuickPickerModal from "../components/main-page/QuickPickerModal.jsx";
@@ -16,10 +17,74 @@ import ZoomedImageModal from "../components/main-page/ZoomedImageModal.jsx";
 import RestaurantSidebar from "../components/main-page/RestaurantSidebar.jsx";
 import EmptyState from "../components/main-page/EmptyState.jsx";
 import LoadingState from "../components/main-page/LoadingState.jsx";
+import GuestOrdersDashboard from "../components/main-page/GuestOrdersDashboard.jsx";
 
 import { FOUR_RESTAURANTS_CONFIG } from "../components/main-page/constants/restaurantsConfig.js";
-import { useAuth } from "../providers/AuthProvider.jsx";
+import useAuth from "../providers/useAuth.js";
 import socket from "../API/socketRequest.js";
+import {
+  getGuestOrders,
+  GUEST_ORDERS_STORAGE_KEY,
+} from "../utils/guestOrderStorage.js";
+import {
+  ANNOUNCEMENTS_STORAGE_KEY,
+  ANNOUNCEMENTS_UPDATED_EVENT,
+  getAnnouncementOrderTotals,
+  getStoredAnnouncements,
+  isAnnouncementConditionMet,
+  saveAnnouncements,
+} from "../utils/announcementStorage.js";
+
+function loadGuestOrdersState() {
+  try {
+    return { orders: getGuestOrders(), error: "" };
+  } catch (error) {
+    console.error("Could not load guest orders:", error);
+    return {
+      orders: [],
+      error: "تعذر قراءة طلبات الضيوف المحفوظة.",
+    };
+  }
+}
+
+function loadAnnouncementsState() {
+  try {
+    return getStoredAnnouncements();
+  } catch (error) {
+    console.error("Could not load saved announcements:", error);
+    return [];
+  }
+}
+
+function mergeAnnouncements(remoteAnnouncements, savedAnnouncements) {
+  const savedById = new Map(
+    savedAnnouncements.map((announcement) => [
+      announcement._id || announcement.id,
+      announcement,
+    ]),
+  );
+  const merged = remoteAnnouncements.map((announcement) => {
+    const id = announcement._id || announcement.id;
+    const savedAnnouncement = savedById.get(id);
+
+    return savedAnnouncement
+      ? { ...announcement, ...savedAnnouncement }
+      : announcement;
+  });
+  const remoteIds = new Set(
+    remoteAnnouncements.map(
+      (announcement) => announcement._id || announcement.id,
+    ),
+  );
+
+  return [
+    ...merged,
+    ...savedAnnouncements.filter(
+      (announcement) =>
+        !remoteIds.has(announcement._id || announcement.id),
+    ),
+  ];
+}
 
 export default function MainPage() {
   const [isAdmin, setIsAdmin] = useState(true);
@@ -31,14 +96,59 @@ export default function MainPage() {
     useState("shakshak");
 
   const [isQuickPickerOpen, setIsQuickPickerOpen] = useState(false);
-  const [customMenuImages, setCustomMenuImages] = useState({});
   const [zoomedMenuImage, setZoomedMenuImage] = useState(null);
 
-  const [announcements, setAnnouncements] = useState([]);
+  const [announcements, setAnnouncements] = useState(loadAnnouncementsState);
+  const [guestOrdersState, setGuestOrdersState] = useState(
+    loadGuestOrdersState,
+  );
+  const { orders: guestOrders, error: guestOrdersError } = guestOrdersState;
   const [isLoading, setIsLoading] = useState(true);
+  const [clockNow, setClockNow] = useState(0);
 
   const [requestMessage, setRequestMessage] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+
+  const refreshGuestOrders = useCallback(() => {
+    setGuestOrdersState(loadGuestOrdersState());
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key === GUEST_ORDERS_STORAGE_KEY || event.key === null) {
+        refreshGuestOrders();
+      }
+
+      if (event.key === ANNOUNCEMENTS_STORAGE_KEY || event.key === null) {
+        setAnnouncements(loadAnnouncementsState());
+      }
+    };
+    const handleAnnouncementsUpdated = () => {
+      setAnnouncements(loadAnnouncementsState());
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("guest-orders-updated", refreshGuestOrders);
+    window.addEventListener(
+      ANNOUNCEMENTS_UPDATED_EVENT,
+      handleAnnouncementsUpdated,
+    );
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("guest-orders-updated", refreshGuestOrders);
+      window.removeEventListener(
+        ANNOUNCEMENTS_UPDATED_EVENT,
+        handleAnnouncementsUpdated,
+      );
+    };
+  }, [refreshGuestOrders]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 15000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Fetch active orders through Socket.IO
   useEffect(() => {
@@ -56,7 +166,16 @@ export default function MainPage() {
         return;
       }
       if (isMounted) {
-        setAnnouncements(orders);
+        const mergedAnnouncements = mergeAnnouncements(
+          orders,
+          loadAnnouncementsState(),
+        );
+        setAnnouncements(mergedAnnouncements);
+        try {
+          saveAnnouncements(mergedAnnouncements);
+        } catch (error) {
+          console.error("Could not persist active announcements:", error);
+        }
         setIsLoading(false);
       }
       console.log("Active orders:", orders);
@@ -88,6 +207,48 @@ export default function MainPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const now = Date.now();
+      const updatedAnnouncements = announcements.map((announcement) =>
+        announcement.status === "open" &&
+        isAnnouncementConditionMet(announcement, guestOrders, now)
+          ? {
+              ...announcement,
+              status: "closed",
+              closedAt: new Date(now).toISOString(),
+            }
+          : announcement,
+      );
+      const hasClosedAnnouncement = updatedAnnouncements.some(
+        (announcement, index) =>
+          announcement.status !== announcements[index]?.status,
+      );
+
+      if (!hasClosedAnnouncement) {
+        return;
+      }
+
+      setAnnouncements(updatedAnnouncements);
+      try {
+        saveAnnouncements(updatedAnnouncements);
+      } catch (error) {
+        console.error(
+          "Could not save automatically closed announcements:",
+          error,
+        );
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [announcements, guestOrders, clockNow]);
+
+  const activeAnnouncements = announcements.filter(
+    (announcement) =>
+      announcement.status === "open" &&
+      !isAnnouncementConditionMet(announcement, guestOrders, clockNow),
+  );
+
   // Open the selected restaurant
   const handleOpenRestaurantBlock = (restKey) => {
     setSelectedRestaurantKey(restKey);
@@ -95,35 +256,48 @@ export default function MainPage() {
     setIsQuickPickerOpen(false);
   };
 
-  // Upload a restaurant menu image locally
-  const handleUploadMenuImage = (restKey, imageUrl) => {
-    setCustomMenuImages((prev) => ({
-      ...prev,
-      [restKey]: imageUrl,
-    }));
-  };
-
   // Handle issuing a new order
   const handleIssueNewOrder = (orderPayload) => {
-    const newAnnouncement = {
-      _id: `ann_${Date.now()}`,
-      restaurantName: orderPayload.restaurantNameAr,
-      restaurantNameEn: orderPayload.restaurantNameEn,
-      collectorName: user?.name,
-      roomNumber: user?.roomNumber,
-      phone: user?.phone,
-      status: "open",
-      createdAt: new Date().toISOString(),
-      message: orderPayload.message,
-      menuImage: orderPayload.menuImage,
-      items: orderPayload.items,
-    };
+    const newAnnouncement = orderPayload.restaurant
+      ? orderPayload
+      : {
+          _id: `order_${Date.now()}`,
+          restaurant: {
+            name: orderPayload.restaurantNameAr,
+            key: orderPayload.restaurantId,
+            menuImage: orderPayload.menuImage,
+            deliveryFees: orderPayload.deliveryFees ?? 5,
+          },
+          collector: {
+            name: user?.name || "كوليكتور",
+            roomNumber: user?.roomNumber ?? "",
+            phone: user?.phone ?? "",
+            note: orderPayload.message || "",
+          },
+          settings: {
+            closingPolicy: "manual",
+            deadline: null,
+            targetDeliveryAmount: null,
+          },
+          status: "open",
+          createdAt: new Date().toISOString(),
+          items: orderPayload.items || [],
+          menuImage: orderPayload.menuImage,
+        };
 
-    setAnnouncements((prev) => [newAnnouncement, ...prev]);
+    const updatedAnnouncements = [newAnnouncement, ...announcements];
+    setAnnouncements(updatedAnnouncements);
+    try {
+      saveAnnouncements(updatedAnnouncements);
+    } catch (error) {
+      console.error("Could not save new announcement:", error);
+      setToastMessage("تم إنشاء الإعلان لكنه لم يُحفظ محليًا.");
+      return;
+    }
     setActiveScreen("dashboard");
 
     setToastMessage(
-      `تم إصدار أوردر (${orderPayload.restaurantNameAr}) ونشر المنيو بنجاح!`,
+      `تم إصدار أوردر (${newAnnouncement.restaurant.name}) ونشر المنيو بنجاح!`,
     );
 
     setTimeout(() => {
@@ -131,11 +305,35 @@ export default function MainPage() {
     }, 4000);
   };
 
+  const handleCloseAnnouncement = (announcementId) => {
+    const updatedAnnouncements = announcements.map((announcement) =>
+      (announcement._id || announcement.id) === announcementId
+        ? {
+            ...announcement,
+            status: "closed",
+            closedAt: new Date().toISOString(),
+          }
+        : announcement,
+    );
+
+    setAnnouncements(updatedAnnouncements);
+    try {
+      saveAnnouncements(updatedAnnouncements);
+    } catch (error) {
+      console.error("Could not close announcement:", error);
+      setToastMessage("تعذر حفظ إغلاق الإعلان.");
+    }
+  };
+
   return (
     <div
       dir="rtl"
       className="relative min-h-screen w-full overflow-x-hidden bg-[#F4A261] p-3 text-[#1a1a1a] select-none sm:p-6 md:p-8"
     >
+      <FoodDoodlePattern
+        opacity={0.14}
+      />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&family=Oswald:wght@500;600;700&display=swap');
 
@@ -197,11 +395,26 @@ export default function MainPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsAdmin((prev) => !prev)}
+            onClick={() => {
+              if (isAdmin) {
+                setActiveScreen("dashboard");
+              }
+              setIsAdmin((prev) => !prev);
+            }}
             className="cursor-pointer rounded-full border border-[#4a4a4a] bg-[#FFF4E6] px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] shadow-sm hover:bg-white"
           >
             تبديل الصلاحية: {isAdmin ? "Admin ✓" : "User"}
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setActiveScreen("guestOrders")}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#4a4a4a] bg-[#737373] px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:bg-[#5e5e5e]"
+            >
+              <ClipboardList className="h-4 w-4" />
+              طلبات الضيوف ({guestOrders.length})
+            </button>
+          )}
         </div>
       </div>
 
@@ -212,7 +425,7 @@ export default function MainPage() {
           user={user}
           activeScreen={activeScreen}
           selectedRestaurantKey={selectedRestaurantKey}
-          onOpenRestaurant={handleOpenRestaurantBlock}
+          onSelectRestaurant={handleOpenRestaurantBlock}
           requestMessage={requestMessage}
           onRequestAdmin={() =>
             setRequestMessage(
@@ -221,11 +434,9 @@ export default function MainPage() {
           }
         />
 
-        <main className="relative flex min-h-160 flex-1 flex-col justify-between overflow-hidden rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 shadow-[0_12px_30px_rgba(0,0,0,0.12)] sm:p-8">
+        <main className="relative flex min-h-160 flex-1 flex-col justify-between overflow-x-clip rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 shadow-[0_12px_30px_rgba(0,0,0,0.12)] sm:p-8">
           <FoodDoodlePattern
-            id="main-card-doodles"
             opacity={0.045}
-            strokeColor="#8c6239"
           />
 
           {activeScreen === "dashboard" ? (
@@ -249,23 +460,38 @@ export default function MainPage() {
                   <span className="rounded-full bg-[#737373] px-4 py-1.5 text-xs font-black text-[#FFF4E6]">
                     {isLoading
                       ? "جاري التحميل..."
-                      : `${announcements.length} إعلانات نشطة`}
+                      : `${activeAnnouncements.length} إعلانات نشطة`}
                   </span>
                 </div>
 
                 {isLoading ? (
                   <LoadingState />
-                ) : announcements.length === 0 ? (
-                  <EmptyState />
+                ) : activeAnnouncements.length === 0 ? (
+                  <EmptyState
+                    onPlaceOrder={() => setIsQuickPickerOpen(true)}
+                  />
                 ) : (
                   <div className="grid grid-cols-1 gap-5">
-                    {announcements.map((announcement) => (
-                      <AnnouncementCard
-                        key={announcement._id || announcement.id}
-                        announcement={announcement}
-                        onZoomImage={setZoomedMenuImage}
-                      />
-                    ))}
+                    {activeAnnouncements.map((announcement) => {
+                      const { orderCount, deliveryCollected } =
+                        getAnnouncementOrderTotals(announcement, guestOrders);
+
+                      return (
+                        <AnnouncementCard
+                          key={announcement._id || announcement.id}
+                          announcement={announcement}
+                          onZoomImage={setZoomedMenuImage}
+                          isAdmin={isAdmin}
+                          onClose={() =>
+                            handleCloseAnnouncement(
+                              announcement._id || announcement.id,
+                            )
+                          }
+                          orderCount={orderCount}
+                          deliveryCollected={deliveryCollected}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -284,6 +510,13 @@ export default function MainPage() {
                 </div>
               )}
             </div>
+          ) : activeScreen === "guestOrders" ? (
+            <GuestOrdersDashboard
+              orders={guestOrders}
+              error={guestOrdersError}
+              onRetry={refreshGuestOrders}
+              onBack={() => setActiveScreen("dashboard")}
+            />
           ) : (
             <div className="relative z-10 flex h-full flex-col justify-between">
               <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#737373]/30 bg-[#737373]/15 p-2.5">
@@ -328,22 +561,20 @@ export default function MainPage() {
               </div>
 
               <div className="my-auto">
-                {Object.values(FOUR_RESTAURANTS_CONFIG).map((restaurant) => (
-                  <RestaurantOrderBlock
-                    key={restaurant.id}
-                    restaurant={restaurant}
-                    isVisible={selectedRestaurantKey === restaurant.id}
-                    menuImage={customMenuImages[restaurant.id]}
-                    onUploadMenuImage={handleUploadMenuImage}
+                {selectedRestaurantKey === "custom" ? (
+                  <CustomUploadRestaurantBlock
+                    isVisible
                     onIssueOrder={handleIssueNewOrder}
-                    onPreviewFullImage={setZoomedMenuImage}
                   />
-                ))}
-
-                <CustomUploadRestaurantBlock
-                  isVisible={selectedRestaurantKey === "custom"}
-                  onIssueOrder={handleIssueNewOrder}
-                />
+                ) : (
+                  <AdminOrderBuilder
+                    key={selectedRestaurantKey}
+                    restaurant={FOUR_RESTAURANTS_CONFIG[selectedRestaurantKey]}
+                    user={user}
+                    onCancel={() => setActiveScreen("dashboard")}
+                    onPublish={handleIssueNewOrder}
+                  />
+                )}
               </div>
             </div>
           )}
