@@ -1,14 +1,25 @@
 import { useMemo, useState } from "react";
+
 import RestaurantMenu from "../RestaurantOrderPage/RestaurantMenu.jsx";
 import OrderSummary from "../RestaurantOrderPage/OrderSummary.jsx";
 import ReferenceMenuImages from "../RestaurantOrderPage/ReferenceMenuImages.jsx";
 
-export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublish }) {
+export default function AdminOrderBuilder({
+  restaurant,
+  user,
+  onCancel,
+  onPublish,
+}) {
   const [cart, setCart] = useState([]);
-  const [collectorName, setCollectorName] = useState(user?.name ?? "");
-  const [roomNumber, setRoomNumber] = useState(user?.roomNumber ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
-  const [note, setNote] = useState(restaurant.defaultMessage ?? "");
+
+  const [collectorName, setCollectorName] = useState(String(user?.name ?? ""));
+
+  const [roomNumber, setRoomNumber] = useState(String(user?.roomNumber ?? ""));
+
+  const [phone, setPhone] = useState(String(user?.phone ?? ""));
+
+  const [note, setNote] = useState(String(restaurant.defaultMessage ?? ""));
+
   const [closingPolicy, setClosingPolicy] = useState("manual");
   const [deadline, setDeadline] = useState("");
   const [targetDeliveryAmount, setTargetDeliveryAmount] = useState("");
@@ -21,6 +32,7 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
 
       selectedItems.forEach((selectedItem) => {
         const cartItemId = `${selectedItem.id}-${selectedItem.sizeCode || "default"}`;
+
         const existingIndex = updatedCart.findIndex(
           (item) => item.cartItemId === cartItemId,
         );
@@ -90,27 +102,34 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
 
     onPublish({
       _id: `order_${Date.now()}`,
+
       restaurant: {
         name: restaurant.nameAr,
         key: restaurant.id,
         menuImage: restaurant.defaultMenuImage,
         deliveryFees,
       },
+
       collector: {
-        name: collectorName.trim() || "كوليكتور",
-        roomNumber: roomNumber.trim(),
-        phone: phone.trim(),
-        note: note.trim(),
+        name: String(collectorName ?? "").trim() || "كوليكتور",
+        roomNumber: String(roomNumber ?? "").trim(),
+        phone: String(phone ?? "").trim(),
+        note: String(note ?? "").trim(),
       },
+
       settings: {
         closingPolicy,
         deadline:
-          closingPolicy === "deadline" ? new Date(deadline).toISOString() : null,
+          closingPolicy === "deadline"
+            ? new Date(deadline).toISOString()
+            : null,
+
         targetDeliveryAmount:
           closingPolicy === "delivery_target"
             ? Number(targetDeliveryAmount)
             : null,
       },
+
       status: "open",
       createdAt: new Date().toISOString(),
       items: cart,
@@ -125,13 +144,16 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
           <p className="font-oswald text-xs font-bold tracking-widest text-[#737373]">
             {restaurant.nameEn}
           </p>
+
           <h1 className="text-2xl font-black text-[#1a1a1a] sm:text-3xl">
             منيو {restaurant.nameAr}
           </h1>
+
           <p className="mt-1 text-sm font-bold text-[#737373]">
             اختار الأصناف والأحجام والكميات، ثم انشر الأوردر للضيوف.
           </p>
         </div>
+
         <button
           type="button"
           onClick={onCancel}
@@ -158,6 +180,7 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
               </button>
             }
           />
+
           {restaurant.id === "shakshak" && <ReferenceMenuImages />}
         </div>
 
@@ -185,7 +208,9 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
               مصاريف التوصيل للضيف
               <select
                 value={deliveryFees}
-                onChange={(event) => setDeliveryFees(Number(event.target.value))}
+                onChange={(event) =>
+                  setDeliveryFees(Number(event.target.value))
+                }
                 className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
               >
                 <option value={5}>5 جنيه</option>
@@ -202,6 +227,7 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
                   className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
                 />
               </label>
+
               <label className="text-sm font-bold text-[#3a3a3a]">
                 رقم الغرفة
                 <input
@@ -210,6 +236,7 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
                   className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
                 />
               </label>
+
               <label className="text-sm font-bold text-[#3a3a3a] sm:col-span-2">
                 رقم الهاتف
                 <input
