@@ -14,6 +14,12 @@ export default function RestaurantSidebar({
   const displayName = user?.name ?? "User";
   const roomNumber = user?.roomNumber ?? "—";
   const phone = user?.phone ?? "—";
+  const roleLabel =
+    user?.role === "owner"
+      ? "مالك النظام"
+      : user?.role === "admin"
+        ? "أدمن / كوليكتور"
+        : "مستخدم";
 
   return (
     <aside className="w-full lg:w-85 xl:w-92.5 shrink-0 rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 sm:p-6 shadow-[0_12px_30px_rgba(0,0,0,0.12)] flex flex-col justify-between relative overflow-hidden">
@@ -36,7 +42,7 @@ export default function RestaurantSidebar({
             <div>
               <p className="text-sm font-black">{displayName}</p>
               <p className="text-[11px] text-[#555]">
-                أوضة {roomNumber} - {phone}
+                {roleLabel} · أوضة {roomNumber} - {phone}
               </p>
             </div>
           </div>

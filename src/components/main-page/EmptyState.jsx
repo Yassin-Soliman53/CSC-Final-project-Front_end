@@ -14,14 +14,16 @@ export default function EmptyState({ onPlaceOrder }) {
         available.
       </p>
 
-      <button
-        type="button"
-        onClick={onPlaceOrder}
-        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-600"
-      >
-        <ShoppingBag size={18} />
-        Place an order
-      </button>
+      {onPlaceOrder && (
+        <button
+          type="button"
+          onClick={onPlaceOrder}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 font-bold text-white transition hover:bg-orange-600"
+        >
+          <ShoppingBag size={18} />
+          Place an order
+        </button>
+      )}
     </div>
   );
 }

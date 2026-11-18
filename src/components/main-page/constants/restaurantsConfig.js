@@ -3,13 +3,13 @@ import shakshakPizzaMenu from "../../../assets/images/WhatsApp Image 2026-10-26 
 export const ROUTES = {
   placeOrder: "/createOrder",
   collectOrders: "/collectOrders",
-  requestAdmin: "/requestAdmin",
+  requestAdmin: "/users/admin-requests",
 };
 
 export const API = {
   announcements: "/api/announcements",
   restaurants: "/api/restaurants",
-  requestAdmin: "/api/users/request-admin",
+  requestAdmin: "/users/admin-requests",
 };
 
 const item = (id, name, prices) => ({

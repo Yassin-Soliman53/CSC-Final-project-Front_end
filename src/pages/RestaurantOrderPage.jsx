@@ -1,86 +1,102 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-import RestaurantMenu from "..//components/RestaurantOrderPage/RestaurantMenu";
-import OrderSummary from "../components/RestaurantOrderPage/OrderSummary";
+import { useNavigate, useParams } from "react-router-dom";
+import RestaurantMenu from "../components/RestaurantOrderPage/RestaurantMenu.jsx";
+import OrderSummary from "../components/RestaurantOrderPage/OrderSummary.jsx";
 import ReferenceMenuImages from "../components/RestaurantOrderPage/ReferenceMenuImages.jsx";
 import { FOUR_RESTAURANTS_CONFIG } from "../components/main-page/constants/restaurantsConfig.js";
-import { getGuestOrders, saveGuestOrder } from "../utils/guestOrderStorage.js";
 import {
-  getStoredAnnouncements,
-  isAnnouncementConditionMet,
-  saveAnnouncements,
-} from "../utils/announcementStorage.js";
-import shakshakBrandImage from "../assets/images/Gemini_Generated_Image_gtewtogtewtogtew.jpg";
+  cancelMyOrder,
+  getOrder,
+  joinOrder,
+  updateMyOrder,
+} from "../API/orders.js";
+import useAuth from "../providers/useAuth.js";
 
-const mockOrder = {
-  _id: "671a2b3c4d5e6f7890123456",
-  restaurant: {
-    name: "شكشك",
-    key: "shakshak",
-    address: "6th of October City, Giza, Egypt",
-    deliveryFees: 5,
-  },
-  collector: {
-    id: "671a2b3c4d5e6f7890123457",
-    name: "Ahmed Mohamed",
-    roomNumber: 204,
-    phone: "01012345678",
-    note: "Please call me when the order arrives.",
-  },
-  settings: {
-    closingPolicy: "manual",
-    deadline: null,
-    targetDeliveryAmount: null,
-  },
-  status: "open",
-  createdAt: "2026-10-27T10:00:00.000Z",
-  updatedAt: "2026-10-27T10:00:00.000Z",
-};
+const getUserId = (user) => String(user?._id || user?.id || "");
+
+function toCartItems(items = []) {
+  return items.map((item, index) => ({
+    id: item.name,
+    cartItemId: `${item.name}-${index}`,
+    name: item.name,
+    price: Number(item.price || 0),
+    quantity: Number(item.quantity),
+  }));
+}
 
 export default function RestaurantOrderPage() {
-  const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
+  const [order, setOrder] = useState(null);
+  const [participant, setParticipant] = useState(null);
   const [cart, setCart] = useState([]);
-  const [customerName, setCustomerName] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
   const [customOrderText, setCustomOrderText] = useState("");
-  const [submitError, setSubmitError] = useState("");
-  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const order = location.state?.announcement || mockOrder;
+  useEffect(() => {
+    let isMounted = true;
 
-  const restaurantKey = order.restaurant?.key;
+    const loadOrder = async () => {
+      setIsLoading(true);
+      setErrorMessage("");
+      try {
+        const response = await getOrder(id);
+        if (!isMounted) {
+          return;
+        }
+
+        const currentOrder = response.order;
+        const currentParticipant = currentOrder.participants?.find(
+          (entry) => String(entry.id?._id || entry.id) === getUserId(user),
+        );
+        setOrder(currentOrder);
+        setParticipant(currentParticipant || null);
+        setCart(toCartItems(currentParticipant?.items));
+      } catch (error) {
+        console.error("Could not load group order:", error);
+        if (isMounted) {
+          setOrder(null);
+          setErrorMessage(error.message || "تعذر تحميل بيانات الأوردر.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadOrder();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, user]);
+
+  const restaurantKey = order?.restaurant?.key;
   const restaurantConfig = FOUR_RESTAURANTS_CONFIG[restaurantKey];
-
   const hasInteractiveMenu = Boolean(restaurantConfig?.categories?.length);
-
   const menuImage =
+    order?.menuImage ||
+    order?.restaurant?.menuImage ||
     restaurantConfig?.defaultMenuImage ||
-    order.restaurant?.menuImage ||
-    order.restaurant?.menuImageUrl ||
     "";
-
-  const deliveryFees = Math.max(
-    0,
-    Number(
-      order.restaurant?.deliveryFees ?? restaurantConfig?.deliveryFees ?? 5,
-    ) || 0,
-  );
+  const deliveryFees = Math.max(0, Number(order?.deliveryFees || 0));
 
   const addToCart = (selectedItems) => {
     setCart((currentCart) => {
       const updatedCart = [...currentCart];
-
       selectedItems.forEach((selectedItem) => {
         const cartItemId = `${selectedItem.id}-${selectedItem.sizeCode || "default"}`;
-
         const existingIndex = updatedCart.findIndex(
           (item) => item.cartItemId === cartItemId,
         );
 
-        if (existingIndex !== -1) {
+        if (existingIndex >= 0) {
           updatedCart[existingIndex] = {
             ...updatedCart[existingIndex],
             quantity:
@@ -88,17 +104,12 @@ export default function RestaurantOrderPage() {
           };
         } else {
           updatedCart.push({
-            id: selectedItem.id,
-            name: selectedItem.name,
+            ...selectedItem,
             cartItemId,
-            sizeCode: selectedItem.sizeCode || null,
-            sizeName: selectedItem.sizeName || null,
-            price: selectedItem.price,
-            quantity: selectedItem.quantity,
+            price: Number(selectedItem.price || 0),
           });
         }
       });
-
       return updatedCart;
     });
   };
@@ -108,10 +119,7 @@ export default function RestaurantOrderPage() {
       currentCart
         .map((item) =>
           item.cartItemId === cartItemId
-            ? {
-                ...item,
-                quantity: item.quantity + change,
-              }
+            ? { ...item, quantity: item.quantity + change }
             : item,
         )
         .filter((item) => item.quantity > 0),
@@ -125,94 +133,104 @@ export default function RestaurantOrderPage() {
   };
 
   const itemsTotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () => cart.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0),
     [cart],
   );
-
   const total = itemsTotal + deliveryFees;
 
-  const handleSubmitOrder = () => {
-    setSubmitError("");
-    setSubmitSuccess("");
-
-    try {
-      const currentGuestOrders = getGuestOrders();
-      const savedAnnouncements = getStoredAnnouncements();
-      const orderId = order._id || order.id;
-      const savedAnnouncement = savedAnnouncements.find(
-        (announcement) =>
-          (announcement._id || announcement.id) === orderId,
-      );
-      const currentAnnouncement = savedAnnouncement || order;
-      const conditionMet = isAnnouncementConditionMet(
-        currentAnnouncement,
-        currentGuestOrders,
-      );
-
-      if (currentAnnouncement.status !== "open" || conditionMet) {
-        if (conditionMet && savedAnnouncement) {
-          saveAnnouncements(
-            savedAnnouncements.map((announcement) =>
-              (announcement._id || announcement.id) === orderId
-                ? {
-                    ...announcement,
-                    status: "closed",
-                    closedAt: new Date().toISOString(),
-                  }
-                : announcement,
-            ),
-          );
-        }
-        setSubmitError("الإعلان اتقفل أو انتهى شرطه، ومبقاش يستقبل طلبات.");
-        return;
-      }
-    } catch (error) {
-      console.error("Could not verify announcement status:", error);
-      setSubmitError("تعذر التأكد من حالة الإعلان. حاول تحديث الصفحة.");
-      return;
-    }
-
-    const normalizedWhatsApp = whatsapp.replace(/\D/g, "");
-    if (!customerName.trim() || !normalizedWhatsApp) {
-      setSubmitError("اكتب اسمك ورقم WhatsApp لإرسال الطلب.");
-      return;
-    }
-
+  const handleSubmitOrder = async () => {
+    setErrorMessage("");
+    setSuccessMessage("");
     if (cart.length === 0 && !customOrderText.trim()) {
-      setSubmitError("اكتب طلبك أو اختار صنفًا من المنيو.");
+      setErrorMessage("اختار صنفًا أو اكتب طلبك قبل التأكيد.");
       return;
     }
 
-    if (normalizedWhatsApp.length < 8 || normalizedWhatsApp.length > 15) {
-      setSubmitError("رقم WhatsApp لازم يكون من 8 إلى 15 رقمًا.");
-      return;
+    const items = cart.map((item) => ({
+      name: [
+        item.name,
+        item.sizeName || item.sizeCode || "",
+      ]
+        .filter(Boolean)
+        .join(" - "),
+      quantity: item.quantity,
+      price: Number(item.price || 0),
+    }));
+    if (customOrderText.trim()) {
+      items.push({ name: customOrderText.trim(), quantity: 1 });
     }
 
-    const guestOrder = {
-      id: `guest_${Date.now()}`,
-      announcementId: order._id || order.id,
-      restaurantKey,
-      restaurantName: order.restaurant?.name || "المطعم",
-      customerName: customerName.trim(),
-      whatsapp: whatsapp.trim(),
-      items: cart,
-      itemsTotal,
-      deliveryFees,
-      total,
-      customRequest: customOrderText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
+    setIsSubmitting(true);
     try {
-      saveGuestOrder(guestOrder);
-      setSubmitSuccess("تم تسجيل طلبك بنجاح.");
-      setCart([]);
+      const response = participant
+        ? await updateMyOrder(id, { items })
+        : await joinOrder(id, { items });
+      const savedParticipant =
+        response.participant ||
+        response.order.participants?.find(
+          (entry) =>
+            String(entry.id?._id || entry.id) === getUserId(user),
+        );
+      setOrder(response.order);
+      setParticipant(savedParticipant || participant);
+      setCart(toCartItems(savedParticipant?.items || items));
       setCustomOrderText("");
+      setSuccessMessage(
+        participant ? "تم تحديث طلبك." : "تم تسجيل طلبك بنجاح.",
+      );
     } catch (error) {
-      console.error("Could not save guest order:", error);
-      setSubmitError("تعذر حفظ الطلب في هذا الجهاز. حاول مرة أخرى.");
+      console.error("Could not save the user's group order:", error);
+      setErrorMessage(error.message || "تعذر حفظ الطلب.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const handleCancelOrder = async () => {
+    if (!window.confirm("هل تريد إلغاء طلبك نهائيًا من هذا الأوردر؟")) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+    try {
+      await cancelMyOrder(id);
+      navigate("/homepage", { replace: true });
+    } catch (error) {
+      console.error("Could not cancel the user's group order:", error);
+      setErrorMessage(error.message || "تعذر إلغاء طلبك.");
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-[#F4A261] p-6" dir="rtl">
+        <p role="status" className="mx-auto max-w-3xl rounded-2xl bg-[#FFF4E6] p-6 font-bold">
+          جاري تحميل الأوردر...
+        </p>
+      </main>
+    );
+  }
+
+  if (!order) {
+    return (
+      <main className="min-h-screen bg-[#F4A261] p-6" dir="rtl">
+        <div className="mx-auto max-w-3xl space-y-4 rounded-2xl bg-[#FFF4E6] p-6">
+          <p role="alert" className="font-bold text-red-700">
+            {errorMessage || "الأوردر غير موجود."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/homepage", { replace: true })}
+            className="rounded-xl bg-[#737373] px-4 py-2 font-bold text-white"
+          >
+            الرجوع للإعلانات
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -220,24 +238,13 @@ export default function RestaurantOrderPage() {
       className="min-h-screen bg-[#F4A261] px-3 py-5 text-[#1a1a1a] sm:px-6 lg:px-10"
     >
       <div className="mx-auto max-w-7xl space-y-6 rounded-[30px] border-2 border-[#b8926a] bg-[#FFF4E6] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.12)] sm:p-7">
-        {restaurantKey === "shakshak" && (
-          <div className="overflow-hidden rounded-2xl border-2 border-[#737373]/30 bg-[#080d26]">
-            <img
-              src={shakshakBrandImage}
-              alt="شكشك - بيتزا وفطائر وحواوشي"
-              className="aspect-[2.4/1] w-full object-cover object-center"
-            />
-          </div>
-        )}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#737373]/25 pb-5">
           <div>
-            <p className="font-oswald text-xs font-bold tracking-widest text-[#737373]">
+            <p className="text-xs font-bold tracking-widest text-[#737373]">
               DELIVERY ORDER
             </p>
             <h1 className="mt-1 text-2xl font-black sm:text-3xl">
-              {order.restaurant?.name
-                ? `أوردر ${order.restaurant.name}`
-                : "تفاصيل الأوردر"}
+              أوردر {order.restaurant?.name || "دليفري"}
             </h1>
             <p className="mt-2 text-sm font-bold text-[#737373]">
               {order.collector?.name || "كوليكتور"}
@@ -249,13 +256,45 @@ export default function RestaurantOrderPage() {
           </div>
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/homepage")}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-[#4a4a4a] bg-[#737373] px-4 py-2 font-bold text-white transition hover:bg-[#5e5e5e]"
           >
             <ArrowLeft size={17} />
             الرجوع للإعلانات
           </button>
         </header>
+
+        {menuImage && !hasInteractiveMenu && (
+          <a
+            href={menuImage}
+            target="_blank"
+            rel="noreferrer"
+            className="block overflow-hidden rounded-2xl border border-gray-200 bg-white"
+          >
+            <img
+              src={menuImage}
+              alt={`منيو ${order.restaurant?.name || "المطعم"}`}
+              className="mx-auto max-h-[700px] w-full object-contain"
+            />
+          </a>
+        )}
+
+        {errorMessage && (
+          <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">
+            {errorMessage}
+          </p>
+        )}
+        {successMessage && (
+          <p role="status" className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm font-bold text-green-800">
+            {successMessage}
+          </p>
+        )}
+
+        {order.status !== "open" && (
+          <p className="rounded-xl bg-white p-3 text-sm font-bold text-[#555]">
+            الأوردر مغلق، لا يمكن إرسال طلب جديد أو تعديل طلبك.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="min-w-0">
@@ -267,47 +306,24 @@ export default function RestaurantOrderPage() {
                   onAddToCart={addToCart}
                   stickyAction={
                     <div className="space-y-2 border-t border-[#737373]/15 pt-2">
-                      <label className="block text-sm font-bold text-[#1a1a1a]">
-                        اسمك
-                        <input
-                          type="text"
-                          autoComplete="name"
-                          value={customerName}
-                          onChange={(event) =>
-                            setCustomerName(event.target.value)
-                          }
-                          placeholder="اكتب اسمك"
-                          className="mt-1 w-full rounded-xl border border-[#737373]/40 bg-white px-3 py-2 outline-none focus:border-[#F4A261]"
-                        />
-                      </label>
-                      <label className="block text-sm font-bold text-[#1a1a1a]">
-                        رقم WhatsApp
-                        <input
-                          type="tel"
-                          autoComplete="tel"
-                          value={whatsapp}
-                          onChange={(event) => setWhatsapp(event.target.value)}
-                          placeholder="مثال: 01012345678"
-                          className="mt-1 w-full rounded-xl border border-[#737373]/40 bg-white px-3 py-2 outline-none focus:border-[#F4A261]"
-                        />
-                      </label>
-                      {submitError && (
-                        <p role="alert" className="text-sm font-bold text-red-700">
-                          {submitError}
-                        </p>
-                      )}
-                      {submitSuccess && (
-                        <p role="status" className="text-sm font-bold text-green-700">
-                          {submitSuccess}
-                        </p>
-                      )}
+                      <p className="text-xs font-bold text-[#555]">
+                        الطلب باسم {user?.name || "حسابك"} · {user?.phone || ""}
+                      </p>
                       <button
                         type="button"
-                        disabled={cart.length === 0}
+                        disabled={
+                          isSubmitting ||
+                          order.status !== "open" ||
+                          (cart.length === 0 && !customOrderText.trim())
+                        }
                         onClick={handleSubmitOrder}
                         className="w-full rounded-xl bg-[#737373] px-4 py-3 font-bold text-white transition hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:bg-gray-300"
                       >
-                        تأكيد الطلب
+                        {isSubmitting
+                          ? "جاري الحفظ..."
+                          : participant
+                            ? "تحديث طلبي"
+                            : "تأكيد الطلب"}
                       </button>
                     </div>
                   }
@@ -315,103 +331,46 @@ export default function RestaurantOrderPage() {
                 {restaurantKey === "shakshak" && <ReferenceMenuImages />}
               </>
             ) : menuImage ? (
-              <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-100 p-5">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    منيو {order.restaurant?.name || "المطعم"}
-                  </h2>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    اكتب طلبك كما هو ظاهر في صورة المنيو، وسيحدد الكوليكتور السعر.
-                  </p>
-                </div>
-
-                <a
-                  href={menuImage}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block bg-gray-100"
-                  aria-label="فتح صورة المنيو بالحجم الكامل"
-                >
-                  <img
-                    src={menuImage}
-                    alt={`منيو ${order.restaurant?.name || "المطعم"}`}
-                    className="mx-auto h-auto max-h-[1000px] w-full object-contain"
-                    loading="lazy"
-                  />
-                </a>
-                <div className="space-y-4 p-5">
-                  <label className="block text-sm font-bold text-[#1a1a1a]">
-                    اكتب طلبك
-                    <textarea
-                      rows={4}
-                      value={customOrderText}
-                      onChange={(event) =>
-                        setCustomOrderText(event.target.value)
-                      }
-                      placeholder="اكتب الأصناف والكميات وأي تفاصيل أو إضافات تريدها..."
-                      className="mt-2 w-full resize-y rounded-xl border border-[#737373]/40 bg-white px-3 py-2 outline-none focus:border-[#F4A261]"
-                    />
-                  </label>
-                  <label className="block text-sm font-bold text-[#1a1a1a]">
-                    اسمك
-                    <input
-                      type="text"
-                      autoComplete="name"
-                      value={customerName}
-                      onChange={(event) => setCustomerName(event.target.value)}
-                      placeholder="اكتب اسمك"
-                      className="mt-1 w-full rounded-xl border border-[#737373]/40 bg-white px-3 py-2 outline-none focus:border-[#F4A261]"
-                    />
-                  </label>
-                  <label className="block text-sm font-bold text-[#1a1a1a]">
-                    رقم WhatsApp
-                    <input
-                      type="tel"
-                      autoComplete="tel"
-                      value={whatsapp}
-                      onChange={(event) => setWhatsapp(event.target.value)}
-                      placeholder="مثال: 01012345678"
-                      className="mt-1 w-full rounded-xl border border-[#737373]/40 bg-white px-3 py-2 outline-none focus:border-[#F4A261]"
-                    />
-                  </label>
-                  <p className="text-sm font-bold text-[#737373]">
-                    سعر الأصناف المكتوبة يحدده الكوليكتور بعد مراجعة الطلب.
-                  </p>
-                  {submitError && (
-                    <p role="alert" className="text-sm font-bold text-red-700">
-                      {submitError}
-                    </p>
-                  )}
-                  {submitSuccess && (
-                    <p role="status" className="text-sm font-bold text-green-700">
-                      {submitSuccess}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleSubmitOrder}
-                    disabled={!customOrderText.trim()}
-                    className="w-full rounded-xl bg-[#737373] px-4 py-3 font-bold text-white transition hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:bg-gray-300"
-                  >
-                    تأكيد الطلب
-                  </button>
-                </div>
-              </section>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  لا توجد صورة للمنيو
+              <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5">
+                <h2 className="text-lg font-bold">
+                  اكتب الطلب كما يظهر في المنيو
                 </h2>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  لم يتم توفير منيو تفاعلية أو صورة لهذا المطعم.
+                <textarea
+                  rows={4}
+                  value={customOrderText}
+                  onChange={(event) => setCustomOrderText(event.target.value)}
+                  disabled={order.status !== "open"}
+                  placeholder="الأصناف والكميات والتفاصيل..."
+                  className="w-full rounded-xl border border-[#737373]/40 bg-white px-3 py-2 outline-none focus:border-[#F4A261] disabled:bg-gray-100"
+                />
+                <p className="text-xs font-bold text-[#555]">
+                  الطلب باسم {user?.name || "حسابك"} · {user?.phone || ""}
                 </p>
+                <button
+                  type="button"
+                  disabled={
+                    isSubmitting ||
+                    order.status !== "open" ||
+                    (cart.length === 0 && !customOrderText.trim())
+                  }
+                  onClick={handleSubmitOrder}
+                  className="w-full rounded-xl bg-[#737373] px-4 py-3 font-bold text-white transition hover:bg-[#5e5e5e] disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {isSubmitting
+                    ? "جاري الحفظ..."
+                    : participant
+                      ? "تحديث طلبي"
+                      : "تأكيد الطلب"}
+                </button>
               </div>
+            ) : (
+              <p className="rounded-2xl bg-white p-6 text-center font-bold">
+                لا توجد منيو متاحة لهذا الأوردر.
+              </p>
             )}
           </section>
 
-          <aside className="lg:sticky lg:top-6">
+          <aside className="space-y-3 lg:sticky lg:top-6">
             <OrderSummary
               cart={cart}
               itemsTotal={itemsTotal}
@@ -421,9 +380,18 @@ export default function RestaurantOrderPage() {
               onRemove={removeFromCart}
               showSubmit={false}
             />
+            {participant && order.status === "open" && (
+              <button
+                type="button"
+                onClick={handleCancelOrder}
+                disabled={isSubmitting}
+                className="w-full rounded-xl bg-red-700 px-4 py-3 font-bold text-white transition hover:bg-red-800 disabled:opacity-60"
+              >
+                إلغاء طلبي نهائيًا
+              </button>
+            )}
           </aside>
         </div>
-
       </div>
     </main>
   );

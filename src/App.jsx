@@ -3,6 +3,7 @@ import SignInPage from "./pages/SignIn.jsx";
 import MainPage from "./pages/main.annouce.jsx";
 import RestaurantOrderPage from "./pages/RestaurantOrderPage.jsx";
 import PasswordResetPage from "./pages/PasswordReset.jsx";
+import ProtectedRoute from "./utils/protectedRoutes.jsx";
 
 export default function App() {
   return (
@@ -11,8 +12,10 @@ export default function App() {
         <Route path="/" element={<Navigate to="/homepage" replace />} />
         <Route path="/signIn" element={<SignInPage />} />
         <Route path="/resetPassword" element={<PasswordResetPage />} />
-        <Route path="/homepage" element={<MainPage />} />
-        <Route path="/orders/:id" element={<RestaurantOrderPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/homepage" element={<MainPage />} />
+          <Route path="/orders/:id" element={<RestaurantOrderPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -17,7 +17,7 @@ import shakshakBrandImage from "../../assets/images/Gemini_Generated_Image_gtewt
 export default function AnnouncementCard({
   announcement,
   onZoomImage,
-  isAdmin = false,
+  canClose = false,
   onClose,
   orderCount = 0,
   deliveryCollected = 0,
@@ -136,7 +136,7 @@ export default function AnnouncementCard({
               {statusLabels[announcement.status] || announcement.status}
             </span>
           )}
-          {isAdmin && announcement?.status === "open" && (
+          {canClose && announcement?.status === "open" && (
             <button
               type="button"
               onClick={onClose}

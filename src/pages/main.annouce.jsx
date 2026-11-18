@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Sparkles,
@@ -6,7 +6,11 @@ import {
   Upload,
   CheckCircle2,
   ClipboardList,
+  LogOut,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import FoodDoodlePattern from "../components/main-page/FoodDoodlePattern.jsx";
 import AdminOrderBuilder from "../components/main-page/AdminOrderBuilder.jsx";
@@ -17,79 +21,58 @@ import ZoomedImageModal from "../components/main-page/ZoomedImageModal.jsx";
 import RestaurantSidebar from "../components/main-page/RestaurantSidebar.jsx";
 import EmptyState from "../components/main-page/EmptyState.jsx";
 import LoadingState from "../components/main-page/LoadingState.jsx";
-import GuestOrdersDashboard from "../components/main-page/GuestOrdersDashboard.jsx";
+import MyOrdersDashboard from "../components/main-page/MyOrdersDashboard.jsx";
+import AdminRequestsDashboard from "../components/main-page/AdminRequestsDashboard.jsx";
+import OwnerUsersDashboard from "../components/main-page/OwnerUsersDashboard.jsx";
 
 import { FOUR_RESTAURANTS_CONFIG } from "../components/main-page/constants/restaurantsConfig.js";
 import useAuth from "../providers/useAuth.js";
 import socket from "../API/socketRequest.js";
-import {
-  getGuestOrders,
-  GUEST_ORDERS_STORAGE_KEY,
-} from "../utils/guestOrderStorage.js";
-import {
-  ANNOUNCEMENTS_STORAGE_KEY,
-  ANNOUNCEMENTS_UPDATED_EVENT,
-  getAnnouncementOrderTotals,
-  getStoredAnnouncements,
-  isAnnouncementConditionMet,
-  saveAnnouncements,
-} from "../utils/announcementStorage.js";
+import signOut from "../API/signOut.js";
+import { requestAdminRole } from "../API/adminRequests.js";
 
-function loadGuestOrdersState() {
-  try {
-    return { orders: getGuestOrders(), error: "" };
-  } catch (error) {
-    console.error("Could not load guest orders:", error);
-    return {
-      orders: [],
-      error: "تعذر قراءة طلبات الضيوف المحفوظة.",
-    };
+function emitSocketRequest(eventName, payload) {
+  if (!socket.connected) {
+    socket.connect();
   }
-}
 
-function loadAnnouncementsState() {
-  try {
-    return getStoredAnnouncements();
-  } catch (error) {
-    console.error("Could not load saved announcements:", error);
-    return [];
-  }
-}
+  return new Promise((resolve, reject) => {
+    socket.timeout(10000).emit(eventName, payload, (timeoutError, response) => {
+      if (timeoutError) {
+        reject(new Error("انتهت مهلة الاتصال بالخادم. حاول مرة أخرى."));
+        return;
+      }
 
-function mergeAnnouncements(remoteAnnouncements, savedAnnouncements) {
-  const savedById = new Map(
-    savedAnnouncements.map((announcement) => [
-      announcement._id || announcement.id,
-      announcement,
-    ]),
-  );
-  const merged = remoteAnnouncements.map((announcement) => {
-    const id = announcement._id || announcement.id;
-    const savedAnnouncement = savedById.get(id);
+      if (!response?.success) {
+        reject(new Error(response?.message || "تعذر تنفيذ الطلب."));
+        return;
+      }
 
-    return savedAnnouncement
-      ? { ...announcement, ...savedAnnouncement }
-      : announcement;
+      resolve(response);
+    });
   });
-  const remoteIds = new Set(
-    remoteAnnouncements.map(
-      (announcement) => announcement._id || announcement.id,
-    ),
-  );
+}
 
-  return [
-    ...merged,
-    ...savedAnnouncements.filter(
-      (announcement) =>
-        !remoteIds.has(announcement._id || announcement.id),
-    ),
-  ];
+function isAnnouncementExpired(announcement, now) {
+  const { settings } = announcement;
+  if (settings?.closingPolicy === "deadline") {
+    const deadline = new Date(settings.deadline).getTime();
+    return Number.isFinite(deadline) && deadline <= now;
+  }
+
+  if (settings?.closingPolicy === "delivery_target") {
+    const target = Number(settings.targetDeliveryAmount);
+    return target > 0 && Number(announcement.deliveryCollected || 0) >= target;
+  }
+
+  return false;
 }
 
 export default function MainPage() {
-  const [isAdmin, setIsAdmin] = useState(true);
-
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
+  const isOwner = user?.role === "owner";
+  const isAdmin = isOwner || user?.role === "admin";
+  const navigate = useNavigate();
 
   const [activeScreen, setActiveScreen] = useState("dashboard");
   const [selectedRestaurantKey, setSelectedRestaurantKey] =
@@ -98,59 +81,14 @@ export default function MainPage() {
   const [isQuickPickerOpen, setIsQuickPickerOpen] = useState(false);
   const [zoomedMenuImage, setZoomedMenuImage] = useState(null);
 
-  const [announcements, setAnnouncements] = useState(loadAnnouncementsState);
-  const [guestOrdersState, setGuestOrdersState] = useState(
-    loadGuestOrdersState,
-  );
-  const { orders: guestOrders, error: guestOrdersError } = guestOrdersState;
+  const [announcements, setAnnouncements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [clockNow, setClockNow] = useState(0);
 
   const [requestMessage, setRequestMessage] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
-  const refreshGuestOrders = useCallback(() => {
-    setGuestOrdersState(loadGuestOrdersState());
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (event.key === GUEST_ORDERS_STORAGE_KEY || event.key === null) {
-        refreshGuestOrders();
-      }
-
-      if (event.key === ANNOUNCEMENTS_STORAGE_KEY || event.key === null) {
-        setAnnouncements(loadAnnouncementsState());
-      }
-    };
-    const handleAnnouncementsUpdated = () => {
-      setAnnouncements(loadAnnouncementsState());
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("guest-orders-updated", refreshGuestOrders);
-    window.addEventListener(
-      ANNOUNCEMENTS_UPDATED_EVENT,
-      handleAnnouncementsUpdated,
-    );
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("guest-orders-updated", refreshGuestOrders);
-      window.removeEventListener(
-        ANNOUNCEMENTS_UPDATED_EVENT,
-        handleAnnouncementsUpdated,
-      );
-    };
-  }, [refreshGuestOrders]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setClockNow(Date.now()), 15000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  // Fetch active orders through Socket.IO
+  // Active orders and changes are sourced from the authenticated backend.
   useEffect(() => {
     let isMounted = true;
 
@@ -166,19 +104,50 @@ export default function MainPage() {
         return;
       }
       if (isMounted) {
-        const mergedAnnouncements = mergeAnnouncements(
-          orders,
-          loadAnnouncementsState(),
-        );
-        setAnnouncements(mergedAnnouncements);
-        try {
-          saveAnnouncements(mergedAnnouncements);
-        } catch (error) {
-          console.error("Could not persist active announcements:", error);
-        }
+        setAnnouncements(orders);
         setIsLoading(false);
       }
-      console.log("Active orders:", orders);
+    };
+    const handleNewOrder = (order) => {
+      setAnnouncements((currentOrders) => [
+        order,
+        ...currentOrders.filter(
+          (currentOrder) =>
+            (currentOrder._id || currentOrder.id) !==
+            (order._id || order.id),
+        ),
+      ]);
+    };
+    const handleOrderUpdate = (updatedOrder) => {
+      if (!updatedOrder?._id && !updatedOrder?.id) {
+        return;
+      }
+      setAnnouncements((currentOrders) =>
+        updatedOrder.status === "open"
+          ? currentOrders.map((currentOrder) =>
+              (currentOrder._id || currentOrder.id) ===
+              (updatedOrder._id || updatedOrder.id)
+                ? { ...currentOrder, ...updatedOrder }
+                : currentOrder,
+            )
+          : currentOrders.filter(
+              (currentOrder) =>
+                (currentOrder._id || currentOrder.id) !==
+                (updatedOrder._id || updatedOrder.id),
+            ),
+      );
+    };
+    const handleRemovedOrder = (event) => {
+      const orderId = event?.orderId || event?._id || event?.id;
+      if (!orderId) {
+        return;
+      }
+      setAnnouncements((currentOrders) =>
+        currentOrders.filter(
+          (currentOrder) =>
+            (currentOrder._id || currentOrder.id) !== orderId,
+        ),
+      );
     };
     const handleConnectError = (error) => {
       console.error("Socket connection error:", error.message);
@@ -190,11 +159,20 @@ export default function MainPage() {
     const handleDisconnect = (reason) => {
       console.log("Socket disconnected:", reason);
     };
+    const handleConnect = () => socket.emit("getActiveOrders");
+
     socket.on("activeOrders", handleActiveOrders);
+    socket.on("newActiveOrder", handleNewOrder);
+    socket.on("orderUpdated", handleOrderUpdate);
+    socket.on("orderClosed", handleRemovedOrder);
+    socket.on("orderCancelled", handleRemovedOrder);
+    socket.on("activeOrderRemoved", handleRemovedOrder);
+    socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
     socket.on("disconnect", handleDisconnect);
-    socket.emit("getActiveOrders");
-    if (!socket.connected) {
+    if (socket.connected) {
+      handleConnect();
+    } else {
       socket.connect();
     }
 
@@ -202,51 +180,34 @@ export default function MainPage() {
       isMounted = false;
 
       socket.off("activeOrders", handleActiveOrders);
+      socket.off("newActiveOrder", handleNewOrder);
+      socket.off("orderUpdated", handleOrderUpdate);
+      socket.off("orderClosed", handleRemovedOrder);
+      socket.off("orderCancelled", handleRemovedOrder);
+      socket.off("activeOrderRemoved", handleRemovedOrder);
+      socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
       socket.off("disconnect", handleDisconnect);
     };
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const now = Date.now();
-      const updatedAnnouncements = announcements.map((announcement) =>
-        announcement.status === "open" &&
-        isAnnouncementConditionMet(announcement, guestOrders, now)
-          ? {
-              ...announcement,
-              status: "closed",
-              closedAt: new Date(now).toISOString(),
-            }
-          : announcement,
-      );
-      const hasClosedAnnouncement = updatedAnnouncements.some(
-        (announcement, index) =>
-          announcement.status !== announcements[index]?.status,
-      );
+    const initialTimer = window.setTimeout(
+      () => setClockNow(Date.now()),
+      0,
+    );
+    const timer = window.setInterval(() => setClockNow(Date.now()), 15000);
 
-      if (!hasClosedAnnouncement) {
-        return;
-      }
-
-      setAnnouncements(updatedAnnouncements);
-      try {
-        saveAnnouncements(updatedAnnouncements);
-      } catch (error) {
-        console.error(
-          "Could not save automatically closed announcements:",
-          error,
-        );
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [announcements, guestOrders, clockNow]);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const activeAnnouncements = announcements.filter(
     (announcement) =>
       announcement.status === "open" &&
-      !isAnnouncementConditionMet(announcement, guestOrders, clockNow),
+      !isAnnouncementExpired(announcement, clockNow),
   );
 
   // Open the selected restaurant
@@ -257,71 +218,82 @@ export default function MainPage() {
   };
 
   // Handle issuing a new order
-  const handleIssueNewOrder = (orderPayload) => {
-    const newAnnouncement = orderPayload.restaurant
-      ? orderPayload
-      : {
-          _id: `order_${Date.now()}`,
-          restaurant: {
-            name: orderPayload.restaurantNameAr,
-            key: orderPayload.restaurantId,
-            menuImage: orderPayload.menuImage,
-            deliveryFees: orderPayload.deliveryFees ?? 5,
-          },
-          collector: {
-            name: user?.name || "كوليكتور",
-            roomNumber: user?.roomNumber ?? "",
-            phone: user?.phone ?? "",
-            note: orderPayload.message || "",
-          },
-          settings: {
-            closingPolicy: "manual",
-            deadline: null,
-            targetDeliveryAmount: null,
-          },
-          status: "open",
-          createdAt: new Date().toISOString(),
-          items: orderPayload.items || [],
-          menuImage: orderPayload.menuImage,
-        };
+  const handleIssueNewOrder = async (orderPayload) => {
+    const restaurant = orderPayload.restaurant || {
+      name: orderPayload.restaurantNameAr,
+      key: orderPayload.restaurantId,
+      address: "",
+    };
 
-    const updatedAnnouncements = [newAnnouncement, ...announcements];
-    setAnnouncements(updatedAnnouncements);
     try {
-      saveAnnouncements(updatedAnnouncements);
+      const response = await emitSocketRequest("collectOrder", {
+        restaurant: {
+          name: restaurant.name,
+          key: restaurant.key || restaurant.id,
+          address: restaurant.address || "",
+        },
+        settings: orderPayload.settings,
+        menuImage: orderPayload.menuImage || restaurant.menuImage || "",
+        deliveryFees: Number(
+          orderPayload.deliveryFees ?? restaurant.deliveryFees ?? 0,
+        ),
+        collector: {
+          note: orderPayload.collector?.note || orderPayload.message || "",
+        },
+      });
+      const newAnnouncement = response.order;
+      setAnnouncements((currentOrders) => [newAnnouncement, ...currentOrders]);
+      setActiveScreen("dashboard");
+      setToastMessage(
+        `تم إصدار أوردر (${newAnnouncement.restaurant.name}) ونشره بنجاح!`,
+      );
+      window.setTimeout(() => setToastMessage(""), 4000);
     } catch (error) {
-      console.error("Could not save new announcement:", error);
-      setToastMessage("تم إنشاء الإعلان لكنه لم يُحفظ محليًا.");
-      return;
+      console.error("Could not create group order:", error);
+      setToastMessage(error.message || "تعذر إصدار الأوردر.");
     }
-    setActiveScreen("dashboard");
-
-    setToastMessage(
-      `تم إصدار أوردر (${newAnnouncement.restaurant.name}) ونشر المنيو بنجاح!`,
-    );
-
-    setTimeout(() => {
-      setToastMessage("");
-    }, 4000);
   };
 
-  const handleCloseAnnouncement = (announcementId) => {
-    const updatedAnnouncements = announcements.map((announcement) =>
-      (announcement._id || announcement.id) === announcementId
-        ? {
-            ...announcement,
-            status: "closed",
-            closedAt: new Date().toISOString(),
-          }
-        : announcement,
-    );
-
-    setAnnouncements(updatedAnnouncements);
+  const handleCloseAnnouncement = async (announcementId) => {
     try {
-      saveAnnouncements(updatedAnnouncements);
+      const response = await emitSocketRequest("closeOrder", { orderId: announcementId });
+      setAnnouncements((currentOrders) =>
+        currentOrders.filter(
+          (announcement) =>
+            (announcement._id || announcement.id) !== announcementId,
+        ),
+      );
+      setToastMessage(
+        `تم إغلاق أوردر ${response.order?.restaurant?.name || ""}.`,
+      );
     } catch (error) {
       console.error("Could not close announcement:", error);
-      setToastMessage("تعذر حفظ إغلاق الإعلان.");
+      setToastMessage(error.message || "تعذر إغلاق الإعلان.");
+    }
+  };
+
+  const handleRequestAdmin = async () => {
+    setRequestMessage("");
+    try {
+      await requestAdminRole();
+      setRequestMessage("تم إرسال طلبك إلى الأدمن للمراجعة.");
+    } catch (error) {
+      console.error("Could not submit admin access request:", error);
+      setRequestMessage(
+        error.message || "تعذر إرسال الطلب. حاول مرة أخرى.",
+      );
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      socket.disconnect();
+      setUser(null);
+      navigate("/signIn", { replace: true });
+    } catch (error) {
+      console.error("Could not sign out:", error);
+      setToastMessage(error.message || "تعذر تسجيل الخروج.");
     }
   };
 
@@ -381,7 +353,12 @@ export default function MainPage() {
 
           <span className="text-xs font-black sm:text-sm">
             لوحة إعلانات الدليفري (
-            {isAdmin ? "وضع الأدمن / الكوليكتور" : "وضع المستخدم"})
+            {isOwner
+              ? "مالك النظام"
+              : isAdmin
+                ? "الأدمن / الكوليكتور"
+                : "المستخدم"}
+            )
           </span>
         </div>
 
@@ -392,29 +369,43 @@ export default function MainPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              if (isAdmin) {
-                setActiveScreen("dashboard");
-              }
-              setIsAdmin((prev) => !prev);
-            }}
-            className="cursor-pointer rounded-full border border-[#4a4a4a] bg-[#FFF4E6] px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] shadow-sm hover:bg-white"
+            onClick={() => setActiveScreen("myOrders")}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#4a4a4a] bg-[#FFF4E6] px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] shadow-sm hover:bg-white"
           >
-            تبديل الصلاحية: {isAdmin ? "Admin ✓" : "User"}
+            <ClipboardList className="h-4 w-4" />
+            طلباتي
           </button>
           {isAdmin && (
             <button
               type="button"
-              onClick={() => setActiveScreen("guestOrders")}
+              onClick={() => setActiveScreen("adminRequests")}
               className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#4a4a4a] bg-[#737373] px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:bg-[#5e5e5e]"
             >
-              <ClipboardList className="h-4 w-4" />
-              طلبات الضيوف ({guestOrders.length})
+              <ShieldCheck className="h-4 w-4" />
+              طلبات الأدمن
             </button>
           )}
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setActiveScreen("ownerUsers")}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#4a4a4a] bg-[#153443] px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:bg-[#0c222c]"
+            >
+              <Users className="h-4 w-4" />
+              إدارة المستخدمين
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#4a4a4a] bg-[#FFF4E6] px-3.5 py-1.5 text-xs font-black text-[#1a1a1a] shadow-sm hover:bg-white"
+          >
+            <LogOut className="h-4 w-4" />
+            خروج
+          </button>
         </div>
       </div>
 
@@ -427,11 +418,7 @@ export default function MainPage() {
           selectedRestaurantKey={selectedRestaurantKey}
           onSelectRestaurant={handleOpenRestaurantBlock}
           requestMessage={requestMessage}
-          onRequestAdmin={() =>
-            setRequestMessage(
-              "تم إرسال طلب صلاحية الأدمن بنجاح! (تجربة محلية فقط)",
-            )
-          }
+          onRequestAdmin={handleRequestAdmin}
         />
 
         <main className="relative flex min-h-160 flex-1 flex-col justify-between overflow-x-clip rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 shadow-[0_12px_30px_rgba(0,0,0,0.12)] sm:p-8">
@@ -468,27 +455,34 @@ export default function MainPage() {
                   <LoadingState />
                 ) : activeAnnouncements.length === 0 ? (
                   <EmptyState
-                    onPlaceOrder={() => setIsQuickPickerOpen(true)}
+                    onPlaceOrder={
+                      isAdmin ? () => setIsQuickPickerOpen(true) : undefined
+                    }
                   />
                 ) : (
                   <div className="grid grid-cols-1 gap-5">
                     {activeAnnouncements.map((announcement) => {
-                      const { orderCount, deliveryCollected } =
-                        getAnnouncementOrderTotals(announcement, guestOrders);
-
                       return (
                         <AnnouncementCard
                           key={announcement._id || announcement.id}
                           announcement={announcement}
                           onZoomImage={setZoomedMenuImage}
-                          isAdmin={isAdmin}
+                          canClose={
+                            isOwner ||
+                            (isAdmin &&
+                              String(
+                                announcement.collector?.id?._id ||
+                                  announcement.collector?.id ||
+                                  "",
+                              ) === String(user?._id || user?.id || ""))
+                          }
                           onClose={() =>
                             handleCloseAnnouncement(
                               announcement._id || announcement.id,
                             )
                           }
-                          orderCount={orderCount}
-                          deliveryCollected={deliveryCollected}
+                          orderCount={announcement.participantCount || 0}
+                          deliveryCollected={announcement.deliveryCollected || 0}
                         />
                       );
                     })}
@@ -510,11 +504,17 @@ export default function MainPage() {
                 </div>
               )}
             </div>
-          ) : activeScreen === "guestOrders" ? (
-            <GuestOrdersDashboard
-              orders={guestOrders}
-              error={guestOrdersError}
-              onRetry={refreshGuestOrders}
+          ) : activeScreen === "myOrders" ? (
+            <MyOrdersDashboard
+              user={user}
+              onBack={() => setActiveScreen("dashboard")}
+            />
+          ) : activeScreen === "adminRequests" && isAdmin ? (
+            <AdminRequestsDashboard
+              onBack={() => setActiveScreen("dashboard")}
+            />
+          ) : activeScreen === "ownerUsers" && isOwner ? (
+            <OwnerUsersDashboard
               onBack={() => setActiveScreen("dashboard")}
             />
           ) : (

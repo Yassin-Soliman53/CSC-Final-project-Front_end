@@ -8,17 +8,46 @@ export default function CustomUploadRestaurantBlock({ isVisible, onIssueOrder })
   const [deliveryFees, setDeliveryFees] = useState(5);
   const [message, setMessage] = useState("");
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadError, setUploadError] = useState("");
+  const [isReadingImage, setIsReadingImage] = useState(false);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedImage(URL.createObjectURL(file));
+    setUploadError("");
+    setUploadedImage(null);
+    if (!file) {
+      return;
     }
+
+    if (!file.type.startsWith("image/")) {
+      setUploadError("اختر ملف صورة صالحًا.");
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setUploadError("حجم صورة المنيو يجب ألا يتجاوز 1 ميجابايت.");
+      return;
+    }
+
+    const reader = new FileReader();
+    setIsReadingImage(true);
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setUploadedImage(reader.result);
+      } else {
+        setUploadError("تعذر قراءة صورة المنيو.");
+      }
+      setIsReadingImage(false);
+    };
+    reader.onerror = () => {
+      setUploadError("تعذر قراءة صورة المنيو.");
+      setIsReadingImage(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!restaurantName.trim()) return;
+    if (!restaurantName.trim() || isReadingImage || uploadError) return;
 
     onIssueOrder({
       restaurantId: `custom_${Date.now()}`,
@@ -127,6 +156,12 @@ export default function CustomUploadRestaurantBlock({ isVisible, onIssueOrder })
           </div>
         </div>
 
+        {uploadError && (
+          <p role="alert" className="text-sm font-bold text-red-700">
+            {uploadError}
+          </p>
+        )}
+
         <div className="rounded-3xl border-[3px] border-[#4a4a4a] bg-white/90 p-6 text-center">
           <label className="flex flex-col items-center justify-center min-h-64 rounded-2xl border-2 border-dashed border-[#737373] bg-[#FFF4E6] p-6 cursor-pointer hover:bg-[#F4A261]/15 transition">
             {uploadedImage ? (
@@ -160,9 +195,10 @@ export default function CustomUploadRestaurantBlock({ isVisible, onIssueOrder })
         <div className="flex justify-center pt-2">
           <button
             type="submit"
-            className="w-full max-w-xs rounded-2xl border-[3px] border-[#2b2b2b] bg-[#737373] hover:bg-[#5c5c5c] py-3.5 px-10 text-2xl sm:text-3xl font-black text-[#111111] shadow-[0_6px_0_#2b2b2b] cursor-pointer"
+            disabled={isReadingImage || Boolean(uploadError)}
+            className="w-full max-w-xs rounded-2xl border-[3px] border-[#2b2b2b] bg-[#737373] hover:bg-[#5c5c5c] py-3.5 px-10 text-2xl sm:text-3xl font-black text-[#111111] shadow-[0_6px_0_#2b2b2b] cursor-pointer disabled:cursor-wait disabled:opacity-60"
           >
-            إصدار
+            {isReadingImage ? "جاري تحميل الصورة..." : "إصدار"}
           </button>
         </div>
       </form>

@@ -5,15 +5,13 @@ import ReferenceMenuImages from "../RestaurantOrderPage/ReferenceMenuImages.jsx"
 
 export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublish }) {
   const [cart, setCart] = useState([]);
-  const [collectorName, setCollectorName] = useState(user?.name ?? "");
-  const [roomNumber, setRoomNumber] = useState(user?.roomNumber ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
   const [note, setNote] = useState(restaurant.defaultMessage ?? "");
   const [closingPolicy, setClosingPolicy] = useState("manual");
   const [deadline, setDeadline] = useState("");
   const [targetDeliveryAmount, setTargetDeliveryAmount] = useState("");
   const [error, setError] = useState("");
   const [deliveryFees, setDeliveryFees] = useState(5);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const addToCart = (selectedItems) => {
     setCart((currentCart) => {
@@ -66,9 +64,13 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
     [cart],
   );
 
-  const handlePublish = (event) => {
+  const handlePublish = async (event) => {
     event.preventDefault();
     setError("");
+
+    if (isPublishing) {
+      return;
+    }
 
     if (cart.length === 0) {
       setError("اختار صنفًا واحدًا على الأقل قبل نشر الأوردر.");
@@ -88,34 +90,33 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
       return;
     }
 
-    onPublish({
-      _id: `order_${Date.now()}`,
-      restaurant: {
-        name: restaurant.nameAr,
-        key: restaurant.id,
-        menuImage: restaurant.defaultMenuImage,
-        deliveryFees,
-      },
-      collector: {
-        name: collectorName.trim() || "كوليكتور",
-        roomNumber: roomNumber.trim(),
-        phone: phone.trim(),
-        note: note.trim(),
-      },
-      settings: {
-        closingPolicy,
-        deadline:
-          closingPolicy === "deadline" ? new Date(deadline).toISOString() : null,
-        targetDeliveryAmount:
-          closingPolicy === "delivery_target"
-            ? Number(targetDeliveryAmount)
-            : null,
-      },
-      status: "open",
-      createdAt: new Date().toISOString(),
-      items: cart,
-      menuImage: restaurant.defaultMenuImage,
-    });
+    setIsPublishing(true);
+    try {
+      await onPublish({
+        restaurant: {
+          name: restaurant.nameAr,
+          key: restaurant.id,
+          menuImage: restaurant.defaultMenuImage,
+          deliveryFees,
+        },
+        collector: {
+          note: note.trim(),
+        },
+        settings: {
+          closingPolicy,
+          deadline:
+            closingPolicy === "deadline"
+              ? new Date(deadline).toISOString()
+              : null,
+          targetDeliveryAmount:
+            closingPolicy === "delivery_target"
+              ? Number(targetDeliveryAmount)
+              : null,
+        },
+      });
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   return (
@@ -151,10 +152,10 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
               <button
                 type="submit"
                 form="admin-order-settings-form"
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || isPublishing}
                 className="w-full rounded-xl border-2 border-[#4a4a4a] bg-[#F4A261] px-4 py-3 font-black text-[#1a1a1a] shadow-sm transition hover:bg-[#e9954e] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                نشر الأوردر للضيوف
+                {isPublishing ? "جاري نشر الأوردر..." : "نشر الأوردر للضيوف"}
               </button>
             }
           />
@@ -193,32 +194,10 @@ export default function AdminOrderBuilder({ restaurant, user, onCancel, onPublis
               </select>
             </label>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="text-sm font-bold text-[#3a3a3a]">
-                اسم الكوليكتور
-                <input
-                  value={collectorName}
-                  onChange={(event) => setCollectorName(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
-                />
-              </label>
-              <label className="text-sm font-bold text-[#3a3a3a]">
-                رقم الغرفة
-                <input
-                  value={roomNumber}
-                  onChange={(event) => setRoomNumber(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
-                />
-              </label>
-              <label className="text-sm font-bold text-[#3a3a3a] sm:col-span-2">
-                رقم الهاتف
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
-                />
-              </label>
+            <div className="grid grid-cols-1 gap-3 rounded-xl bg-[#FFF4E6] p-3 text-sm font-bold text-[#3a3a3a] sm:grid-cols-2">
+              <p>الكوليكتور: {user?.name || "حسابك"}</p>
+              <p>رقم الغرفة: {user?.roomNumber ?? "—"}</p>
+              <p className="sm:col-span-2">رقم الهاتف: {user?.phone || "—"}</p>
             </div>
 
             <label className="block text-sm font-bold text-[#3a3a3a]">
