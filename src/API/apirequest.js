@@ -1,6 +1,15 @@
 const apiRequest = async (endpoint, options = {}) => {
   try {
-    const URL = import.meta.env.VITE_API_URL;
+    const URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
+
+    if (!URL) {
+      throw {
+        status: 0,
+        error: "CONFIG_ERROR",
+        message: "عنوان API غير مضبوط. أضف VITE_API_URL إلى إعدادات المشروع.",
+      };
+    }
+
     const response = await fetch(`${URL}${endpoint}`, {
       ...options,
       credentials: "include",
@@ -22,7 +31,7 @@ const apiRequest = async (endpoint, options = {}) => {
 
     return data;
   } catch (error) {
-    if (error.status && error.error) {
+    if (error && typeof error === "object" && "error" in error) {
       throw error;
     }
 

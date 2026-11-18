@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 export default function SignInForm({ onSwitch, onForgotPassword }) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [invalidCredentials, setInvalidCredentials] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { setUser } = useAuth();
   const [data, setData] = useState({
@@ -17,6 +18,11 @@ export default function SignInForm({ onSwitch, onForgotPassword }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    if (invalidCredentials) {
+      setInvalidCredentials(false);
+      setErrorMessage("");
+    }
+
     setData((prevData) => ({
       ...prevData,
       [name]: value,
@@ -26,6 +32,7 @@ export default function SignInForm({ onSwitch, onForgotPassword }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
+    setInvalidCredentials(false);
     setIsSubmitting(true);
     try {
       const response = await signIn({
@@ -34,6 +41,7 @@ export default function SignInForm({ onSwitch, onForgotPassword }) {
       setUser(response.user);
       navigate(location.state?.from?.pathname || "/homepage", { replace: true });
     } catch (error) {
+      setInvalidCredentials(error.status === 401);
       setErrorMessage(
         error.status === 401
           ? "البريد الإلكتروني أو كلمة المرور غير صحيحة."
@@ -46,6 +54,11 @@ export default function SignInForm({ onSwitch, onForgotPassword }) {
 
   const inputClass =
     "w-full px-4 py-3 text-sm rounded-xl border border-[#1a1f2c]/20 focus:border-[#E4572E] focus:ring-[#E4572E]/20 bg-white text-[#1a1f2c] focus:outline-none focus:ring-2 shadow-sm";
+  const credentialInputClass = `${inputClass} ${
+    invalidCredentials
+      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+      : ""
+  }`;
 
   return (
     <div className="w-full max-w-md text-center">
@@ -83,7 +96,8 @@ export default function SignInForm({ onSwitch, onForgotPassword }) {
             placeholder="حط إيميلك"
             autoComplete="username"
             required
-            className={inputClass}
+            aria-invalid={invalidCredentials}
+            className={credentialInputClass}
           />
         </div>
 
@@ -106,7 +120,8 @@ export default function SignInForm({ onSwitch, onForgotPassword }) {
               placeholder="باسوردك معلش"
               autoComplete="current-password"
               required
-              className={`${inputClass} pl-10`}
+              aria-invalid={invalidCredentials}
+              className={`${credentialInputClass} pl-10`}
             />
 
             <button
