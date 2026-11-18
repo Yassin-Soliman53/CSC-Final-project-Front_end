@@ -32,24 +32,37 @@ import signOut from "../API/signOut.js";
 import { requestAdminRole } from "../API/adminRequests.js";
 
 function emitSocketRequest(eventName, payload) {
-  if (!socket.connected) {
-    socket.connect();
-  }
-
   return new Promise((resolve, reject) => {
-    socket.timeout(10000).emit(eventName, payload, (timeoutError, response) => {
-      if (timeoutError) {
-        reject(new Error("انتهت مهلة الاتصال بالخادم. حاول مرة أخرى."));
-        return;
-      }
+    if (!socket.connected) {
+      reject(new Error("غير متصل بالخادم."));
+      return;
+    }
 
-      if (!response?.success) {
-        reject(new Error(response?.message || "تعذر تنفيذ الطلب."));
-        return;
-      }
+    const cleanup = () => {
+      socket.off("roomCreated", handleSuccess);
+      socket.off("socketError", handleError);
+      clearTimeout(timeout);
+    };
 
+    const handleSuccess = (response) => {
+      cleanup();
       resolve(response);
-    });
+    };
+
+    const handleError = (error) => {
+      cleanup();
+      reject(new Error(error.message || "تعذر تنفيذ الطلب."));
+    };
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("انتهت مهلة الاتصال بالخادم. حاول مرة أخرى."));
+    }, 10000);
+
+    socket.once("roomCreated", handleSuccess);
+    socket.once("socketError", handleError);
+
+    socket.emit(eventName, payload);
   });
 }
 
@@ -109,12 +122,14 @@ export default function MainPage() {
       }
     };
     const handleNewOrder = (order) => {
+      console.log(order);
+
+      if (!order?._id) return;
+
       setAnnouncements((currentOrders) => [
         order,
-        ...currentOrders.filter(
-          (currentOrder) =>
-            (currentOrder._id || currentOrder.id) !==
-            (order._id || order.id),
+        ...(currentOrders || []).filter(
+          (currentOrder) => currentOrder?._id !== order._id,
         ),
       ]);
     };
@@ -144,8 +159,7 @@ export default function MainPage() {
       }
       setAnnouncements((currentOrders) =>
         currentOrders.filter(
-          (currentOrder) =>
-            (currentOrder._id || currentOrder.id) !== orderId,
+          (currentOrder) => (currentOrder._id || currentOrder.id) !== orderId,
         ),
       );
     };
@@ -192,10 +206,7 @@ export default function MainPage() {
   }, []);
 
   useEffect(() => {
-    const initialTimer = window.setTimeout(
-      () => setClockNow(Date.now()),
-      0,
-    );
+    const initialTimer = window.setTimeout(() => setClockNow(Date.now()), 0);
     const timer = window.setInterval(() => setClockNow(Date.now()), 15000);
 
     return () => {
@@ -204,8 +215,9 @@ export default function MainPage() {
     };
   }, []);
 
-  const activeAnnouncements = announcements.filter(
+  const activeAnnouncements = (announcements || []).filter(
     (announcement) =>
+      announcement &&
       announcement.status === "open" &&
       !isAnnouncementExpired(announcement, clockNow),
   );
@@ -241,7 +253,7 @@ export default function MainPage() {
           note: orderPayload.collector?.note || orderPayload.message || "",
         },
       });
-      const newAnnouncement = response.order;
+      const newAnnouncement = response.data;
       setAnnouncements((currentOrders) => [newAnnouncement, ...currentOrders]);
       setActiveScreen("dashboard");
       setToastMessage(
@@ -256,7 +268,9 @@ export default function MainPage() {
 
   const handleCloseAnnouncement = async (announcementId) => {
     try {
-      const response = await emitSocketRequest("closeOrder", { orderId: announcementId });
+      const response = await emitSocketRequest("closeOrder", {
+        orderId: announcementId,
+      });
       setAnnouncements((currentOrders) =>
         currentOrders.filter(
           (announcement) =>
@@ -279,9 +293,7 @@ export default function MainPage() {
       setRequestMessage("تم إرسال طلبك إلى الأدمن للمراجعة.");
     } catch (error) {
       console.error("Could not submit admin access request:", error);
-      setRequestMessage(
-        error.message || "تعذر إرسال الطلب. حاول مرة أخرى.",
-      );
+      setRequestMessage(error.message || "تعذر إرسال الطلب. حاول مرة أخرى.");
     }
   };
 
@@ -302,9 +314,7 @@ export default function MainPage() {
       dir="rtl"
       className="relative min-h-screen w-full overflow-x-hidden bg-[#F4A261] p-3 text-[#1a1a1a] select-none sm:p-6 md:p-8"
     >
-      <FoodDoodlePattern
-        opacity={0.14}
-      />
+      <FoodDoodlePattern opacity={0.14} />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&family=Oswald:wght@500;600;700&display=swap');
@@ -422,9 +432,7 @@ export default function MainPage() {
         />
 
         <main className="relative flex min-h-160 flex-1 flex-col justify-between overflow-x-clip rounded-[34px] border-[2.5px] border-[#b8926a] bg-[#FFF4E6] p-5 shadow-[0_12px_30px_rgba(0,0,0,0.12)] sm:p-8">
-          <FoodDoodlePattern
-            opacity={0.045}
-          />
+          <FoodDoodlePattern opacity={0.045} />
 
           {activeScreen === "dashboard" ? (
             <div className="relative z-10 flex h-full flex-col justify-between gap-6">
@@ -482,7 +490,9 @@ export default function MainPage() {
                             )
                           }
                           orderCount={announcement.participantCount || 0}
-                          deliveryCollected={announcement.deliveryCollected || 0}
+                          deliveryCollected={
+                            announcement.deliveryCollected || 0
+                          }
                         />
                       );
                     })}
@@ -514,9 +524,7 @@ export default function MainPage() {
               onBack={() => setActiveScreen("dashboard")}
             />
           ) : activeScreen === "ownerUsers" && isOwner ? (
-            <OwnerUsersDashboard
-              onBack={() => setActiveScreen("dashboard")}
-            />
+            <OwnerUsersDashboard onBack={() => setActiveScreen("dashboard")} />
           ) : (
             <div className="relative z-10 flex h-full flex-col justify-between">
               <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#737373]/30 bg-[#737373]/15 p-2.5">
