@@ -4,31 +4,18 @@ import MainPage from "./pages/main.annouce.jsx";
 import RestaurantOrderPage from "./pages/RestaurantOrderPage.jsx";
 import PasswordResetPage from "./pages/PasswordReset.jsx";
 import ProtectedRoute from "./utils/protectedRoutes.jsx";
-<<<<<<< HEAD
-
-=======
->>>>>>> d00ae77f0f4603086546435c9a615b9186138a60
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/homepage" replace />} />
         <Route path="/signIn" element={<SignInPage />} />
-<<<<<<< HEAD
         <Route path="/resetPassword" element={<PasswordResetPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/homepage" element={<MainPage />} />
           <Route path="/orders/:id" element={<RestaurantOrderPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
-=======
-        <Route element={<ProtectedRoute />}>
-          <Route path="/resetPassword" element={<PasswordResetPage />} />
-          <Route path="/homepage" element={<MainPage />} />
-          <Route path="/orders/:id" element={<RestaurantOrderPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
->>>>>>> d00ae77f0f4603086546435c9a615b9186138a60
       </Routes>
     </BrowserRouter>
   );

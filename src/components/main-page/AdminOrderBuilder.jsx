@@ -11,19 +11,10 @@ export default function AdminOrderBuilder({
   onPublish,
 }) {
   const [cart, setCart] = useState([]);
-<<<<<<< HEAD
+  const [collectorName, setCollectorName] = useState(user?.name ?? "");
+  const [roomNumber, setRoomNumber] = useState(user?.roomNumber ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
   const [note, setNote] = useState(restaurant.defaultMessage ?? "");
-=======
-
-  const [collectorName, setCollectorName] = useState(String(user?.name ?? ""));
-
-  const [roomNumber, setRoomNumber] = useState(String(user?.roomNumber ?? ""));
-
-  const [phone, setPhone] = useState(String(user?.phone ?? ""));
-
-  const [note, setNote] = useState(String(restaurant.defaultMessage ?? ""));
-
->>>>>>> d00ae77f0f4603086546435c9a615b9186138a60
   const [closingPolicy, setClosingPolicy] = useState("manual");
   const [deadline, setDeadline] = useState("");
   const [targetDeliveryAmount, setTargetDeliveryAmount] = useState("");
@@ -109,71 +100,34 @@ export default function AdminOrderBuilder({
       return;
     }
 
-<<<<<<< HEAD
-    setIsPublishing(true);
-    try {
-      await onPublish({
-        restaurant: {
-          name: restaurant.nameAr,
-          key: restaurant.id,
-          menuImage: restaurant.defaultMenuImage,
-          deliveryFees,
-        },
-        collector: {
-          note: note.trim(),
-        },
-        settings: {
-          closingPolicy,
-          deadline:
-            closingPolicy === "deadline"
-              ? new Date(deadline).toISOString()
-              : null,
-          targetDeliveryAmount:
-            closingPolicy === "delivery_target"
-              ? Number(targetDeliveryAmount)
-              : null,
-        },
-      });
-    } finally {
-      setIsPublishing(false);
-    }
-=======
     onPublish({
       _id: `order_${Date.now()}`,
-
       restaurant: {
         name: restaurant.nameAr,
         key: restaurant.id,
         menuImage: restaurant.defaultMenuImage,
         deliveryFees,
       },
-
       collector: {
-        name: String(collectorName ?? "").trim() || "كوليكتور",
-        roomNumber: String(roomNumber ?? "").trim(),
-        phone: String(phone ?? "").trim(),
-        note: String(note ?? "").trim(),
+        name: collectorName.trim() || "كوليكتور",
+        roomNumber: roomNumber.trim(),
+        phone: phone.trim(),
+        note: note.trim(),
       },
-
       settings: {
         closingPolicy,
         deadline:
-          closingPolicy === "deadline"
-            ? new Date(deadline).toISOString()
-            : null,
-
+          closingPolicy === "deadline" ? new Date(deadline).toISOString() : null,
         targetDeliveryAmount:
           closingPolicy === "delivery_target"
             ? Number(targetDeliveryAmount)
             : null,
       },
-
       status: "open",
       createdAt: new Date().toISOString(),
       items: cart,
       menuImage: restaurant.defaultMenuImage,
     });
->>>>>>> d00ae77f0f4603086546435c9a615b9186138a60
   };
 
   return (
@@ -257,12 +211,6 @@ export default function AdminOrderBuilder({
               </select>
             </label>
 
-<<<<<<< HEAD
-            <div className="grid grid-cols-1 gap-3 rounded-xl bg-[#FFF4E6] p-3 text-sm font-bold text-[#3a3a3a] sm:grid-cols-2">
-              <p>الكوليكتور: {user?.name || "حسابك"}</p>
-              <p>رقم الغرفة: {user?.roomNumber ?? "—"}</p>
-              <p className="sm:col-span-2">رقم الهاتف: {user?.phone || "—"}</p>
-=======
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="text-sm font-bold text-[#3a3a3a]">
                 اسم الكوليكتور
@@ -272,7 +220,6 @@ export default function AdminOrderBuilder({
                   className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
                 />
               </label>
-
               <label className="text-sm font-bold text-[#3a3a3a]">
                 رقم الغرفة
                 <input
@@ -281,7 +228,6 @@ export default function AdminOrderBuilder({
                   className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
                 />
               </label>
-
               <label className="text-sm font-bold text-[#3a3a3a] sm:col-span-2">
                 رقم الهاتف
                 <input
@@ -291,7 +237,6 @@ export default function AdminOrderBuilder({
                   className="mt-1 w-full rounded-xl border border-[#737373]/50 bg-[#FFF4E6] px-3 py-2"
                 />
               </label>
->>>>>>> d00ae77f0f4603086546435c9a615b9186138a60
             </div>
 
             <label className="block text-sm font-bold text-[#3a3a3a]">
